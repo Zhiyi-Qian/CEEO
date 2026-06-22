@@ -1,0 +1,129 @@
+import cv2
+import numpy as np
+import lelib
+from lelib import doubleMotor
+
+# ── Connect to Double Motor ──────────────────────────────────────────────────
+# Change card_serial to the number printed on your connection card
+print("Connecting to double motor...")
+dm = doubleMotor()
+dm.connect(card_serial="9430")
+dm.set_speed(50)  # Set speed once (0-100), adjust as needed
+print("Double motor connected!")
+
+# ── Red Ball Detector ────────────────────────────────────────────────────────
+def detect_red_ball(frame):
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # Red wraps around in HSV so we need two ranges
+    lower_red1 = np.array([0,   120, 70])
+    upper_red1 = np.array([10,  255, 255])
+    lower_red2 = np.array([170, 120, 70])
+    upper_red2 = np.array([180, 255, 255])
+
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    mask  = cv2.bitwise_or(mask1, mask2)
+
+    # Clean up noise
+    mask = cv2.erode(mask,  None, iterations=2)
+    mask = cv2.dilate(mask, None, iterations=2)
+
+    # Find contours
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        return None, None  # No ball found
+
+    # Pick the largest contour
+    c = max(contours, key=cv2.contourArea)
+    ((x, y), radius) = cv2.minEnclosingCircle(c)
+
+    if radius > 15:  # Filter out tiny blobs
+        return int(x), int(y)
+    return None, None
+
+# ── Direction Decision ───────────────────────────────────────────────────────
+def get_direction(ball_x, frame_width=640):
+    if ball_x is None:
+        return "STOP"
+
+    left_zone  = frame_width // 3
+    right_zone = 2 * frame_width // 3
+
+    if ball_x < left_zone:
+        return "LEFT"
+    elif ball_x > right_zone:
+        return "RIGHT"
+    else:
+        return "FORWARD"
+
+# ── Motor Command ────────────────────────────────────────────────────────────
+last_direction = None
+
+def send_motor_command(direction):
+    global last_direction
+    if direction == last_direction:
+        return
+    last_direction = direction
+
+    if direction == "FORWARD":
+        dm.run()
+    elif direction == "LEFT":
+        dm.run_left()    # runs continuously
+    elif direction == "RIGHT":
+        dm.run_right()   # runs continuously
+    elif direction == "STOP":
+        dm.stop()
+
+# ── Main Camera Loop ─────────────────────────────────────────────────────────  # 0 = built-in Mac webcam
+cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)   # lower resolution
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)  # lower resolution
+cap.set(cv2.CAP_PROP_FPS, 30)
+
+if not cap.isOpened():
+    print("ERROR: Could not open camera. Try changing 0 to 1 in VideoCapture(0).")
+    exit()
+
+print("Camera started. Hold a red ball in front of the camera.")
+print("Press Q to quit.")
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("ERROR: Lost camera feed.")
+        break
+
+    frame_width = frame.shape[1]
+    ball_x, ball_y = detect_red_ball(frame)
+    direction = get_direction(ball_x, frame_width)
+
+    send_motor_command(direction)
+
+    # ── Visual Feedback ──────────────────────────────────────────────────────
+    if ball_x is not None:
+        cv2.circle(frame, (ball_x, ball_y), 20, (0, 255, 0), 3)
+        cv2.putText(frame, f"X: {ball_x}", (ball_x + 25, ball_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+    # Draw the three zone dividers
+    cv2.line(frame, (frame_width // 3, 0),     (frame_width // 3, 480),     (255, 0, 0), 2)
+    cv2.line(frame, (2 * frame_width // 3, 0), (2 * frame_width // 3, 480), (255, 0, 0), 2)
+
+    # Show current direction top-left
+    color_map = {"FORWARD": (0,255,0), "LEFT": (0,165,255), "RIGHT": (0,165,255), "STOP": (0,0,255)}
+    cv2.putText(frame, direction, (10, 50),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.5, color_map[direction], 3)
+
+    cv2.imshow("Red Ball Car Control", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# ── Cleanup ──────────────────────────────────────────────────────────────────
+print("Stopping motors and closing camera...")
+dm.stop()
+cap.release()
+cv2.destroyAllWindows()
+print("Done.")
