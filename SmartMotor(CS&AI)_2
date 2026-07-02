@@ -1,0 +1,140 @@
+#this code uses single motor and color sensor
+
+import legoeducation as le
+import time
+import threading
+
+# -------------------------------------------------------
+MOTOR_CARD_COLOR   = le.LEGO_COLOR_PURPLE
+MOTOR_CARD_SERIAL  = '5164'
+
+SENSOR_CARD_COLOR  = le.LEGO_COLOR_RED
+SENSOR_CARD_SERIAL = '1133'
+# -------------------------------------------------------
+
+print("Connecting to devices...")
+
+motor = le.SingleMotor()
+motor.connect(card_color=MOTOR_CARD_COLOR, card_serial=MOTOR_CARD_SERIAL)
+if not motor.connected:
+    print("Error: Motor not connected.")
+    exit(1)
+print("Motor connected.")
+
+colorsensor = le.ColorSensor()
+colorsensor.connect(card_color=SENSOR_CARD_COLOR, card_serial=SENSOR_CARD_SERIAL)
+if not colorsensor.connected:
+    print("Error: Color sensor not connected.")
+    exit(1)
+print("Color sensor connected.")
+
+training_data = []
+
+# Flags set by keyboard thread
+should_record = False
+should_run    = False
+
+
+def keyboard_listener():
+    global should_record, should_run
+    while True:
+        key = input()
+        if key.lower() == 'r':
+            should_run = True
+        else:  # Enter (empty string) = record
+            should_record = True
+
+
+# Start keyboard listener in background so it doesn't block the main loop
+kb_thread = threading.Thread(target=keyboard_listener, daemon=True)
+kb_thread.start()
+
+
+def get_motor_angle():
+    return motor.motor.position % 360
+
+
+def get_sensor_reading():
+    return colorsensor.sensor.hue  # 0-360
+
+
+def record_pair():
+    hue      = get_sensor_reading()
+    position = get_motor_angle()
+    training_data.append((hue, position))
+    training_data.sort(key=lambda p: p[0])
+    colorsensor.beep(pattern=le.SOUND_PATTERN_BEEP_SINGLE, frequency=880)
+    print(f"\n[RECORDED] Hue: {hue} | Motor angle: {position} | Total: {len(training_data)}")
+
+
+def predict_position(hue):
+    if len(training_data) < 2:
+        return get_motor_angle()
+
+    if hue <= training_data[0][0]:
+        return training_data[0][1]
+    if hue >= training_data[-1][0]:
+        return training_data[-1][1]
+
+    for i in range(len(training_data) - 1):
+        h0, p0 = training_data[i]
+        h1, p1 = training_data[i + 1]
+        if h0 <= hue <= h1:
+            ratio = (hue - h0) / (h1 - h0)
+            return p0 + ratio * (p1 - p0)
+
+
+# --- TRAINING PHASE ---
+print("\n=== TRAINING MODE ===")
+print("Show a color to the sensor, rotate motor by hand to desired angle")
+print("Press ENTER     = record (hue → motor angle) pair")
+print("Type r + ENTER  = exit training and start run (need at least 2 points)")
+print("")
+
+while True:
+    hue      = get_sensor_reading()
+    position = get_motor_angle()
+
+    # Check keyboard flags
+    if should_record:
+        should_record = False
+        record_pair()
+
+    if should_run:
+        if len(training_data) < 2:
+            print("\nNeed at least 2 data points! Keep training.")
+            should_run = False
+        else:
+            print(f"\nExiting training with {len(training_data)} data points.")
+            break
+
+    print(f"Color hue: {hue:>6} | Motor angle (0-360): {position:>6} | Points: {len(training_data)}", end='\r')
+    time.sleep(0.05)
+
+# --- RUN PHASE ---
+colorsensor.beep(pattern=le.SOUND_PATTERN_BEEP_SINGLE, frequency=440)
+print("\n\n=== RUN MODE ===")
+print("Show colors to the sensor — motor moves to learned angle. Ctrl+C to stop.\n")
+
+try:
+    while True:
+        hue      = get_sensor_reading()
+        target   = predict_position(hue)
+        position = get_motor_angle()
+        diff     = int(target - position)
+
+        if abs(diff) > 5:
+            motor.motor_run_for_degrees(diff)
+
+        print(f"Color hue: {hue:>6} | Target angle: {target:>6.1f} | Motor angle: {position:>6}", end='\r')
+        time.sleep(0.1)
+
+except KeyboardInterrupt:
+    print("\n\nStopping...")
+
+finally:
+    motor.motor_stop()
+    motor.disconnect()
+    colorsensor.disconnect()
+    print("All devices disconnected.")
+    exit(0)
