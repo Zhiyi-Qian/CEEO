@@ -1,0 +1,91 @@
+#everything in Pybricks
+#need to flash firmware first
+
+from pybricks.hubs import PrimeHub
+from pybricks.pupdevices import Motor, UltrasonicSensor
+from pybricks.parameters import Port, Button
+from pybricks.tools import wait
+import math
+
+hub = PrimeHub()
+sensor = UltrasonicSensor(Port.D)
+motor = Motor(Port.B)
+
+training_data = []  # list of (distance, angle) tuples, reset every run since it's just in RAM
+
+# --- SPEED CYCLE SETUP ---
+speed_levels = [20, 30, 40, 50, 60, 70, 80, 90, 100, 10]
+speed_index = 0
+current_speed = speed_levels[speed_index]
+
+SHAKE_THRESHOLD = 15000  # tune this based on testing
+shake_cooldown = 0       # prevents one shake from triggering multiple increments
+
+
+def is_shaking():
+    x, y, z = hub.imu.acceleration()
+    magnitude = math.sqrt(x**2 + y**2 + z**2)
+    return magnitude > SHAKE_THRESHOLD
+
+
+def update_speed_from_shake():
+    global speed_index, current_speed, shake_cooldown
+    if shake_cooldown > 0:
+        shake_cooldown -= 1
+        return
+    if is_shaking():
+        speed_index = (speed_index + 1) % len(speed_levels)
+        current_speed = speed_levels[speed_index]
+        print("Speed now:", current_speed)
+        shake_cooldown = 5  # roughly half a second at 100ms loop, adjust as needed
+
+
+def record_pair():
+    d = sensor.distance()
+    a = motor.angle()
+    training_data.append((d, a))
+    training_data.sort(key=lambda pair: pair[0])
+    print("Recorded:", d, a)
+
+
+def clamp_angle(angle):
+    return max(0, min(360, angle))
+
+
+def predict_angle(distance):
+    if len(training_data) < 2:
+        return 0
+
+    if distance <= training_data[0][0]:
+        return clamp_angle(training_data[0][1])
+    if distance >= training_data[-1][0]:
+        return clamp_angle(training_data[-1][1])
+
+    for i in range(len(training_data) - 1):
+        d0, a0 = training_data[i]
+        d1, a1 = training_data[i + 1]
+        if d0 <= distance <= d1:
+            ratio = (distance - d0) / (d1 - d0)
+            angle = a0 + ratio * (a1 - a0)
+            return clamp_angle(angle)
+
+
+# --- TRAINING PHASE ---
+print("Training mode: LEFT = record pair, RIGHT = start running")
+while not (hub.buttons.pressed() & {Button.RIGHT}):
+    if hub.buttons.pressed() & {Button.LEFT}:
+        record_pair()
+        wait(500)  # debounce
+    wait(50)
+
+print("Switching to run mode. Shake to speed up!")
+wait(500)  # avoid double-trigger from the same right-button press
+
+# --- RUN PHASE ---
+while True:
+    update_speed_from_shake()
+    d = sensor.distance()
+    target = predict_angle(d)
+    motor.run_target(current_speed, target)
+    print("Distance:", d, "| Motor angle:", target, "| Speed:", current_speed, "| Shake to speed up!")
+    wait(100)
