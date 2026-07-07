@@ -4,103 +4,139 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Smart Motor Lab</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
 <style>
+:root {
+  --theme: #F97316;
+  --theme-light: #FFF7ED;
+  --theme-mid: #FFEDD5;
+  --theme-border: #FED7AA;
+  --theme-dark: #C2410C;
+}
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', system-ui, sans-serif; background: #F0F4FF; color: #0F172A; min-height: 100vh; }
+body { font-family: 'Nunito', sans-serif; background: #F3F4F6; color: #1F2937; min-height: 100vh; }
 
-.header { background: #fff; border-bottom: 1px solid #E2E8F0; padding: 0 24px; display: flex; align-items: center; gap: 24px; position: sticky; top: 0; z-index: 100; }
-.logo { padding: 16px 0; margin-right: auto; }
-.logo-name { font-size: 16px; font-weight: 600; color: #0F172A; }
-.logo-sub { font-size: 11px; color: #94A3B8; margin-top: 2px; }
-.tabs { display: flex; }
-.tab-btn { padding: 20px 20px; border: none; background: none; cursor: pointer; font-size: 13px; font-family: 'Inter', sans-serif; color: #64748B; font-weight: 400; border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 6px; transition: color .15s; }
-.tab-btn.active { color: #6366F1; border-bottom-color: #6366F1; font-weight: 500; }
-.server-badge { display: flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 8px; border: 1px solid #E2E8F0; font-size: 12px; color: #64748B; }
-.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #CBD5E1; transition: background .3s; }
-.status-dot.connected { background: #10B981; }
-.status-dot.demo { background: #F59E0B; }
+.header {
+  background: linear-gradient(135deg, #1E3A5F 0%, #2D1B69 100%);
+  padding: 0 24px; display: flex; align-items: center; gap: 0;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25);
+}
+.logo { padding: 14px 0; margin-right: 32px; display: flex; align-items: center; gap: 10px; }
+.logo-name { font-size: 18px; font-weight: 800; color: #fff; line-height: 1; }
+.logo-sub { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 2px; }
 
-.body { display: flex; gap: 16px; padding: 20px; align-items: flex-start; max-width: 1200px; margin: 0 auto; }
-.sidebar { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
-.main { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+.tabs { display: flex; gap: 8px; margin-right: auto; }
+.tab-btn {
+  padding: 8px 20px; border: none; cursor: pointer;
+  font-size: 14px; font-family: 'Nunito', sans-serif; font-weight: 700;
+  border-radius: 20px; display: flex; align-items: center; gap: 7px;
+  transition: all .2s; color: rgba(255,255,255,.6); background: rgba(255,255,255,.08);
+}
+.tab-btn:hover { background: rgba(255,255,255,.15); color: #fff; }
+.tab-btn.t-explore.active { background: #06B6D4; box-shadow: 0 0 16px rgba(6,182,212,.5); color: #fff; }
+.tab-btn.t-train.active   { background: #F97316; box-shadow: 0 0 16px rgba(249,115,22,.5); color: #fff; }
+.tab-btn.t-play.active    { background: #A855F7; box-shadow: 0 0 16px rgba(168,85,247,.5); color: #fff; }
 
-.card { background: #fff; border: 1px solid #E2E8F0; border-radius: 12px; padding: 18px; }
-.card-label { font-size: 11px; color: #94A3B8; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
+.server-badge {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 14px; border-radius: 20px;
+  background: rgba(255,255,255,.1); font-size: 12px; color: rgba(255,255,255,.8);
+  font-family: 'Nunito', sans-serif; font-weight: 600;
+}
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #6B7280; }
+.status-dot.connected { background: #22C55E; box-shadow: 0 0 8px #22C55E; }
+.status-dot.demo { background: #FCD34D; box-shadow: 0 0 8px #FCD34D; }
 
-.sensor-opt { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; margin-bottom: 6px; cursor: pointer; border: 1px solid transparent; transition: all .15s; }
-.sensor-opt:hover { background: #F8FAFF; }
-.sensor-opt.sel { background: #EEF2FF; border-color: #C7D2FE; }
-.sensor-opt-name { font-size: 12px; font-weight: 500; color: #0F172A; }
-.sensor-opt.sel .sensor-opt-name { color: #6366F1; }
-.sensor-opt-desc { font-size: 11px; color: #94A3B8; margin-top: 1px; }
+.body { display: flex; gap: 18px; padding: 20px; align-items: flex-start; max-width: 1200px; margin: 0 auto; }
+.sidebar { width: 230px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+.main { flex: 1; display: flex; flex-direction: column; gap: 16px; }
 
-.device-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F1F5F9; }
+.card { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.06); border-top: 4px solid var(--theme); }
+.card.no-stripe { border-top-color: #E5E7EB; }
+.card-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--theme); margin-bottom: 14px; }
+.card.no-stripe .card-label { color: #9CA3AF; }
+
+.sensor-opt { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; cursor: pointer; border: 2px solid transparent; transition: all .2s; background: #F9FAFB; }
+.sensor-opt:hover { background: var(--theme-light); border-color: var(--theme-border); }
+.sensor-opt.sel { background: var(--theme-light); border-color: var(--theme); }
+.sensor-opt-name { font-size: 13px; font-weight: 700; color: #1F2937; }
+.sensor-opt.sel .sensor-opt-name { color: var(--theme-dark); }
+.sensor-opt-desc { font-size: 11px; color: #9CA3AF; margin-top: 1px; font-weight: 600; }
+
+.device-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed #F3F4F6; }
 .device-row:last-child { border-bottom: none; }
-.dev-left { display: flex; align-items: center; gap: 8px; }
-.dev-dot { width: 7px; height: 7px; border-radius: 50%; background: #CBD5E1; transition: background .3s; flex-shrink: 0; }
-.dev-dot.on { background: #10B981; }
-.dev-name { font-size: 12px; color: #334155; }
-.dev-btn { font-size: 11px; padding: 3px 9px; border-radius: 6px; border: 1px solid #E2E8F0; background: none; cursor: pointer; font-family: 'Inter', sans-serif; color: #6366F1; }
-.dev-btn:hover { background: #EEF2FF; }
+.dev-left { display: flex; align-items: center; gap: 9px; }
+.dev-dot { width: 9px; height: 9px; border-radius: 50%; background: #D1D5DB; flex-shrink: 0; transition: all .3s; }
+.dev-dot.on { background: #22C55E; box-shadow: 0 0 6px #22C55E88; }
+.dev-name { font-size: 13px; color: #374151; font-weight: 600; }
+.dev-btn { font-size: 11px; padding: 4px 11px; border-radius: 8px; border: 2px solid #E5E7EB; background: none; cursor: pointer; font-family: 'Nunito', sans-serif; font-weight: 700; color: #6B7280; transition: all .15s; }
+.dev-btn:hover { border-color: var(--theme); color: var(--theme); }
 .dev-btn.disconnect { color: #EF4444; border-color: #FECACA; }
 .dev-btn.disconnect:hover { background: #FEF2F2; }
 
-.top-row { display: flex; gap: 14px; }
+.demo-note { background: #FEFCE8; border: 2px dashed #FCD34D; border-radius: 12px; padding: 12px 14px; font-size: 12px; color: #92400E; line-height: 1.6; font-weight: 600; }
+
+.top-row { display: flex; gap: 16px; }
 .motor-card { flex: 1; display: flex; flex-direction: column; align-items: center; }
 .sensor-card { flex: 1; }
-.big-reading { text-align: center; margin-bottom: 18px; }
-.big-num { font-size: 60px; font-weight: 500; font-family: 'JetBrains Mono', monospace; line-height: 1; color: #0F172A; }
-.big-desc { font-size: 11px; color: #94A3B8; margin-top: 6px; }
-.sensor-bar-bg { height: 8px; background: #F1F5F9; border-radius: 4px; overflow: hidden; margin-bottom: 4px; }
-.sensor-bar-fill { height: 100%; background: #6366F1; border-radius: 4px; transition: width .12s ease; }
-.sensor-bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: #94A3B8; margin-bottom: 14px; }
 
-.angle-slider { width: 100%; margin-top: 10px; accent-color: #6366F1; }
-.slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: #94A3B8; margin-top: 3px; }
+.big-reading { text-align: center; margin-bottom: 16px; }
+.big-num { font-size: 68px; font-weight: 800; font-family: 'JetBrains Mono', monospace; line-height: 1; color: var(--theme); }
+.big-desc { font-size: 12px; color: #9CA3AF; margin-top: 6px; font-weight: 700; letter-spacing: .05em; }
 
-.add-btn { width: 100%; padding: 11px 0; border-radius: 8px; border: none; background: #6366F1; color: #fff; font-weight: 500; font-size: 14px; cursor: pointer; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.add-btn:hover { background: #4F46E5; }
-.add-btn:active { transform: scale(.98); }
+.sensor-bar-bg { height: 10px; background: #F3F4F6; border-radius: 5px; overflow: hidden; margin-bottom: 4px; }
+.sensor-bar-fill { height: 100%; background: var(--theme); border-radius: 5px; transition: width .12s ease; }
+.sensor-bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: #9CA3AF; margin-bottom: 16px; font-weight: 700; }
 
-.info-box { padding: 12px 14px; border-radius: 8px; font-size: 12px; line-height: 1.6; }
-.info-accent { background: #EEF2FF; color: #4338CA; }
-.info-warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
-.info-success { background: #ECFDF5; color: #065F46; }
-.save-preview { padding: 10px 12px; background: #F8FAFF; border-radius: 8px; font-size: 12px; color: #64748B; margin-bottom: 10px; }
+.info-box { padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.6; font-weight: 600; }
+.info-explore { background: #EFF6FF; color: #1D4ED8; border-left: 4px solid #3B82F6; }
+.info-warn    { background: #FEFCE8; color: #854D0E; border-left: 4px solid #FCD34D; }
+.info-success { background: #F0FDF4; color: #166534; border-left: 4px solid #22C55E; }
+.info-rotate  { background: #EEF2FF; color: #3730A3; border-left: 4px solid #6366F1; border-radius: 10px; padding: 10px 14px; font-size: 12px; font-weight: 700; margin-bottom: 10px; }
 
-.plot-empty { height: 180px; display: flex; align-items: center; justify-content: center; color: #94A3B8; font-size: 13px; }
-#scatter-wrap { position: relative; height: 240px; }
+.save-preview { padding: 10px 14px; background: #F9FAFB; border-radius: 10px; font-size: 13px; color: #6B7280; margin-bottom: 12px; font-weight: 600; border: 1px dashed #D1D5DB; }
+
+.add-btn { width: 100%; padding: 13px 0; border-radius: 12px; border: none; background: var(--theme); color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; font-family: 'Nunito', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; transition: filter .15s; box-shadow: 0 4px 14px rgba(249,115,22,.35); }
+.add-btn:hover { filter: brightness(1.07); }
+.add-btn:active { transform: scale(.97); }
+
+.angle-slider { width: 100%; margin-top: 12px; accent-color: var(--theme); cursor: pointer; }
+.slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: #9CA3AF; margin-top: 4px; font-weight: 700; }
+.predicted-tag { margin-top: 10px; font-size: 15px; color: #A855F7; font-weight: 800; text-align: center; }
+
+#scatter-wrap { position: relative; height: 250px; }
+.plot-empty { height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9CA3AF; font-size: 14px; font-weight: 600; gap: 8px; }
+.plot-empty span { font-size: 32px; }
 
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th { padding: 7px 10px; text-align: left; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; color: #94A3B8; border-bottom: 1px solid #F1F5F9; }
-.data-table td { padding: 9px 10px; border-bottom: 1px solid #F8FAFF; }
-.mono { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
-.accent { color: #6366F1; }
-.table-wrap { overflow-y: auto; max-height: 240px; }
-.empty-msg { text-align: center; padding: 24px 0; color: #94A3B8; font-size: 13px; }
-.del-btn { width: 22px; height: 22px; border-radius: 50%; border: none; background: #FEE2E2; color: #EF4444; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
-.clear-btn { font-size: 12px; color: #EF4444; background: #FEF2F2; border: 1px solid #FECACA; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-family: 'Inter', sans-serif; }
-.legend { display: flex; gap: 14px; font-size: 11px; color: #94A3B8; align-items: center; }
-.legend-dot { display: inline-block; width: 20px; height: 2px; margin-right: 4px; vertical-align: middle; }
-.demo-note { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 12px 14px; font-size: 11px; color: #92400E; line-height: 1.6; }
-.predicted-tag { margin-top: 10px; font-size: 13px; color: #6366F1; font-weight: 500; text-align: center; }
+.data-table th { padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #9CA3AF; border-bottom: 2px solid #F3F4F6; }
+.data-table tr:nth-child(even) td { background: #F9FAFB; }
+.data-table td { padding: 10px 12px; border-bottom: 1px solid #F3F4F6; font-weight: 600; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+.accent { color: var(--theme); font-weight: 700; }
+.table-wrap { overflow-y: auto; max-height: 260px; border-radius: 8px; overflow: hidden; }
+.empty-msg { text-align: center; padding: 28px 0; color: #9CA3AF; font-size: 14px; font-weight: 600; }
+.del-btn { width: 24px; height: 24px; border-radius: 8px; border: none; background: #FEE2E2; color: #EF4444; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.del-btn:hover { background: #FECACA; }
+.clear-btn { font-size: 12px; color: #EF4444; background: #FEF2F2; border: 2px solid #FECACA; border-radius: 8px; padding: 5px 12px; cursor: pointer; font-family: 'Nunito', sans-serif; font-weight: 700; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: #6B7280; align-items: center; font-weight: 700; }
 
-.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.4); display: flex; align-items: center; justify-content: center; z-index: 999; }
-.modal { background: #fff; border-radius: 14px; padding: 28px; width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,.15); }
-.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
-.modal label { font-size: 12px; color: #64748B; font-weight: 500; display: block; margin-bottom: 6px; margin-top: 14px; }
-.modal select, .modal input { width: 100%; padding: 9px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; font-family: 'Inter', sans-serif; background: #F8FAFF; outline: none; }
-.modal select:focus, .modal input:focus { border-color: #6366F1; }
-.modal-btns { display: flex; gap: 10px; margin-top: 22px; }
-.modal-cancel { flex: 1; padding: 10px; border: 1px solid #E2E8F0; border-radius: 8px; background: none; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 14px; color: #64748B; }
-.modal-connect { flex: 2; padding: 10px; border: none; border-radius: 8px; background: #6366F1; color: #fff; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500; }
-.modal-connect:hover { background: #4F46E5; }
-.error-msg { margin-top: 10px; font-size: 12px; color: #EF4444; padding: 8px 10px; background: #FEF2F2; border-radius: 6px; display: none; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(4px); }
+.modal { background: #fff; border-radius: 20px; padding: 28px; width: 360px; box-shadow: 0 24px 60px rgba(0,0,0,.2); border-top: 6px solid var(--theme); }
+.modal h3 { font-size: 18px; font-weight: 800; margin-bottom: 20px; color: #1F2937; }
+.modal label { font-size: 12px; color: #6B7280; font-weight: 700; display: block; margin-bottom: 6px; margin-top: 16px; text-transform: uppercase; letter-spacing: .05em; }
+.modal select, .modal input { width: 100%; padding: 10px 14px; border: 2px solid #E5E7EB; border-radius: 10px; font-size: 14px; font-family: 'Nunito', sans-serif; font-weight: 600; background: #F9FAFB; outline: none; transition: border-color .2s; }
+.modal select:focus, .modal input:focus { border-color: var(--theme); }
+.modal-btns { display: flex; gap: 10px; margin-top: 24px; }
+.modal-cancel { flex: 1; padding: 11px; border: 2px solid #E5E7EB; border-radius: 10px; background: none; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 700; color: #6B7280; }
+.modal-connect { flex: 2; padding: 11px; border: none; border-radius: 10px; background: var(--theme); color: #fff; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; }
+.modal-connect:hover { filter: brightness(1.05); }
+.error-msg { margin-top: 10px; font-size: 12px; color: #EF4444; padding: 9px 12px; background: #FEF2F2; border-radius: 8px; display: none; font-weight: 700; }
 .error-msg.show { display: block; }
-.connecting-msg { margin-top: 10px; font-size: 12px; color: #6366F1; display: none; }
+.connecting-msg { margin-top: 10px; font-size: 12px; color: var(--theme); display: none; font-weight: 700; }
 .connecting-msg.show { display: block; }
 </style>
 </head>
@@ -108,13 +144,15 @@ body { font-family: 'Inter', system-ui, sans-serif; background: #F0F4FF; color: 
 
 <div class="header">
   <div class="logo">
-    <div class="logo-name">⚡ Smart Motor Lab</div>
-    <div class="logo-sub">LEGO CS&amp;AI Kit</div>
+    <div class="logo-text">
+      <div class="logo-name">⚡ Smart Motor Lab</div>
+      <div class="logo-sub">LEGO CS &amp; AI Kit</div>
+    </div>
   </div>
   <div class="tabs">
-    <button class="tab-btn active" data-tab="explore" onclick="switchTab('explore')">🔭 Explore</button>
-    <button class="tab-btn" data-tab="train" onclick="switchTab('train')">🧠 Train</button>
-    <button class="tab-btn" data-tab="play" onclick="switchTab('play')">▶ Play</button>
+    <button class="tab-btn t-explore active" data-tab="explore" onclick="switchTab('explore')">🔭 Explore</button>
+    <button class="tab-btn t-train"          data-tab="train"   onclick="switchTab('train')">🧠 Train</button>
+    <button class="tab-btn t-play"           data-tab="play"    onclick="switchTab('play')">▶️ Play</button>
   </div>
   <div class="server-badge">
     <div class="status-dot demo" id="server-dot"></div>
@@ -127,20 +165,20 @@ body { font-family: 'Inter', system-ui, sans-serif; background: #F0F4FF; color: 
     <div class="card">
       <div class="card-label">Sensor input</div>
       <div class="sensor-opt sel" data-sid="color" onclick="setSensor('color')">
-        <span style="font-size:18px">🎨</span>
-        <div><div class="sensor-opt-name">Color sensor</div><div class="sensor-opt-desc">Hue · 0–360</div></div>
+        <span style="font-size:22px;width:32px;text-align:center">🎨</span>
+        <div><div class="sensor-opt-name">Color sensor</div><div class="sensor-opt-desc">Hue · 0 – 360</div></div>
       </div>
       <div class="sensor-opt" data-sid="controller" onclick="setSensor('controller')">
-        <span style="font-size:18px">🕹️</span>
-        <div><div class="sensor-opt-name">Controller</div><div class="sensor-opt-desc">Lever position · −100–100%</div></div>
+        <span style="font-size:22px;width:32px;text-align:center">🕹️</span>
+        <div><div class="sensor-opt-name">Controller</div><div class="sensor-opt-desc">Lever · −100 – 100%</div></div>
       </div>
       <div class="sensor-opt" data-sid="doublemotor" onclick="setSensor('doublemotor')">
-        <span style="font-size:18px">⚙️</span>
-        <div><div class="sensor-opt-name">Double motor</div><div class="sensor-opt-desc">Tilt / pitch · −90–90</div></div>
+        <span style="font-size:22px;width:32px;text-align:center">⚙️</span>
+        <div><div class="sensor-opt-name">Double motor</div><div class="sensor-opt-desc">Tilt · −90 – 90°</div></div>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card no-stripe">
       <div class="card-label">Devices</div>
       <div class="device-row">
         <div class="dev-left"><div class="dev-dot" id="dot-motor"></div><span class="dev-name">Single motor</span></div>
@@ -161,7 +199,7 @@ body { font-family: 'Inter', system-ui, sans-serif; background: #F0F4FF; color: 
     </div>
 
     <div class="demo-note" id="demo-note">
-      <strong>Demo mode</strong> — sensor values are simulated. Run <code>python server.py</code> and reload to use real devices.
+      📡 <strong>Demo mode</strong> — sensor values are simulated. Run <code>python server.py</code> and reload to use real devices!
     </div>
   </div>
 
@@ -171,8 +209,11 @@ body { font-family: 'Inter', system-ui, sans-serif; background: #F0F4FF; color: 
         <div class="card-label">Motor position</div>
         <svg id="gauge" width="200" height="200" style="display:block;" onclick="gaugeClick(event)"></svg>
         <div id="angle-slider-wrap" style="width:100%;display:none;">
-          <input type="range" class="angle-slider" id="angle-slider" min="0" max="360" value="0" oninput="setMotorAngle(+this.value)" />
-          <div class="slider-labels"><span>0°</span><span>180°</span><span>360°</span></div>
+          <div id="rotate-hint" class="info-rotate" style="display:none;">
+            🔄 Motor connected — rotate by hand or use the slider!
+          </div>
+          <input type="range" class="angle-slider" id="angle-slider" min="0" max="359" value="0" oninput="sliderChanged(+this.value)" />
+          <div class="slider-labels"><span>0°</span><span>180°</span><span>359°</span></div>
         </div>
         <div class="predicted-tag" id="predicted-tag" style="display:none;"></div>
       </div>
@@ -181,19 +222,20 @@ body { font-family: 'Inter', system-ui, sans-serif; background: #F0F4FF; color: 
         <div class="card-label" id="sensor-card-label">Color sensor</div>
         <div class="big-reading">
           <div class="big-num" id="sensor-num">0</div>
-          <div class="big-desc" id="sensor-desc">Hue · 0–360</div>
+          <div class="big-desc" id="sensor-desc">HUE · 0 – 360</div>
         </div>
         <div class="sensor-bar-bg"><div class="sensor-bar-fill" id="sensor-bar" style="width:0%"></div></div>
         <div class="sensor-bar-labels"><span id="smin-label">0</span><span id="smax-label">360</span></div>
-        <div class="info-box info-accent" id="explore-info">
-          This is your <strong>input</strong> — the value the motor will learn to respond to. Move the sensor and watch the reading change.
+
+        <div class="info-box info-explore" id="explore-info">
+          👋 This is your <strong>input</strong> — the value the motor will learn to react to. Change the sensor and watch the number update!
         </div>
         <div id="train-controls" style="display:none;">
-          <div class="save-preview">Will save: sensor <strong id="preview-sensor">0</strong> → motor <strong id="preview-motor">0°</strong></div>
-          <button class="add-btn" onclick="addDataPoint()">+ Add data point</button>
+          <div class="save-preview">📌 Will save: sensor <strong id="preview-sensor">0</strong> → motor <strong id="preview-motor">0°</strong></div>
+          <button class="add-btn" onclick="addDataPoint()">＋ Add data point</button>
         </div>
         <div class="info-box info-success" id="play-info" style="display:none;"></div>
-        <div class="info-box info-warn" id="play-warn" style="display:none;">Add at least 2 data points in Train first.</div>
+        <div class="info-box info-warn"    id="play-warn" style="display:none;">⚠️ Add at least 2 data points in Train mode first!</div>
       </div>
     </div>
 
@@ -202,21 +244,21 @@ body { font-family: 'Inter', system-ui, sans-serif; background: #F0F4FF; color: 
         <div class="card-label" style="margin:0;">Training data plot</div>
         <div style="display:flex;align-items:center;gap:12px;">
           <div class="legend" id="plot-legend" style="display:none;">
-            <span><span class="legend-dot" style="background:#64748B;border-top:2px dashed #64748B;"></span>Current sensor</span>
-            <span><span class="legend-dot" style="background:#6366F1;border-top:2px dashed #6366F1;"></span>Predicted</span>
+            <span>— Current sensor</span>
+            <span style="color:#A855F7;">— Predicted</span>
           </div>
-          <button class="clear-btn" id="clear-btn" style="display:none;" onclick="clearData()">Clear all</button>
+          <button class="clear-btn" id="clear-btn" style="display:none;" onclick="clearData()">🗑 Clear all</button>
         </div>
       </div>
-      <div id="scatter-wrap"><div class="plot-empty">No data points yet — add some above</div></div>
+      <div id="scatter-wrap"><div class="plot-empty"><span>📊</span>No data points yet — add some in Train mode!</div></div>
     </div>
 
     <div class="card" id="table-card" style="display:none;">
       <div class="card-label" id="table-label">Training values (0)</div>
-      <div id="table-empty" class="empty-msg">No data points yet.</div>
+      <div id="table-empty" class="empty-msg">📋 No data points yet.</div>
       <div class="table-wrap" id="table-wrap" style="display:none;">
         <table class="data-table">
-          <thead><tr><th>#</th><th>Sensor</th><th>Motor</th><th id="delete-col"></th></tr></thead>
+          <thead><tr><th>#</th><th>Sensor</th><th>Motor angle</th><th id="delete-col"></th></tr></thead>
           <tbody id="table-body"></tbody>
         </table>
       </div>
@@ -240,57 +282,101 @@ body { font-family: 'Inter', system-ui, sans-serif; background: #F0F4FF; color: 
     </select>
     <label>Card serial (4 digits on the card)</label>
     <input type="text" id="modal-serial" maxlength="4" placeholder="e.g. 5164" />
-    <div class="connecting-msg" id="connecting-msg">Connecting via Bluetooth…</div>
+    <div class="connecting-msg" id="connecting-msg">🔵 Connecting via Bluetooth…</div>
     <div class="error-msg" id="modal-error"></div>
     <div class="modal-btns">
       <button class="modal-cancel" onclick="closeModal()">Cancel</button>
-      <button class="modal-connect" onclick="doConnect()">Connect</button>
+      <button class="modal-connect" onclick="doConnect()">Connect!</button>
     </div>
   </div>
 </div>
 
 <script>
-const SENSORS = {
-  color:       { label:'Color sensor',  desc:'Hue · 0–360',              range:[0,   360] },
-  controller:  { label:'Controller',    desc:'Lever position · −100–100%', range:[-100,100] },
-  doublemotor: { label:'Double motor',  desc:'Tilt / pitch · −90–90',     range:[-90,  90] },
+const TAB_THEMES = {
+  explore: { color:'#06B6D4', light:'#ECFEFF', mid:'#CFFAFE', border:'#A5F3FC', dark:'#0E7490' },
+  train:   { color:'#F97316', light:'#FFF7ED', mid:'#FFEDD5', border:'#FED7AA', dark:'#C2410C' },
+  play:    { color:'#A855F7', light:'#FAF5FF', mid:'#F3E8FF', border:'#E9D5FF', dark:'#7E22CE' },
 };
 
-let tab          = 'explore';
-let sensorId     = 'color';
-let sensorValue  = 0;
-let motorAngle   = 0;
-let trainingData = [];
-let serverConn   = false;
-let demoInterval = null;
-let demoT        = 0;
-let modalDevice  = null;
-let chartInst    = null;
+function applyTheme(t) {
+  const th = TAB_THEMES[t], r = document.documentElement.style;
+  r.setProperty('--theme',        th.color);
+  r.setProperty('--theme-light',  th.light);
+  r.setProperty('--theme-mid',    th.mid);
+  r.setProperty('--theme-border', th.border);
+  r.setProperty('--theme-dark',   th.dark);
+}
+
+const SENSORS = {
+  color:       { label:'Color sensor',  desc:'HUE · 0 – 360',              range:[0,   360] },
+  controller:  { label:'Controller',    desc:'LEVER · −100 – 100%',         range:[-100,100] },
+  doublemotor: { label:'Double motor',  desc:'TILT · −90 – 90°',            range:[-90,  90] },
+};
+
+let tab           = 'explore';
+let sensorId      = 'color';
+let sensorValue   = 0;
+let motorAngle    = 0;   // always reflects real motor position from server
+let trainingData  = [];
+let serverConn    = false;
+let motorConn     = false;
+let demoInterval  = null;
+let demoT         = 0;
+let modalDevice   = null;
+let chartInst     = null;
 
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
 let socket;
 try {
   socket = io('http://localhost:5000', { timeout:3000, reconnectionAttempts:3 });
+
   socket.on('connect', () => {
     serverConn = true; stopDemo();
-    document.getElementById('server-dot').className = 'status-dot connected';
+    document.getElementById('server-dot').className  = 'status-dot connected';
     document.getElementById('server-label').textContent = 'Server connected';
-    document.getElementById('demo-note').style.display = 'none';
+    document.getElementById('demo-note').style.display  = 'none';
   });
+
   socket.on('disconnect', () => {
-    serverConn = false; startDemo();
-    document.getElementById('server-dot').className = 'status-dot demo';
+    serverConn = false; motorConn = false; startDemo();
+    document.getElementById('server-dot').className  = 'status-dot demo';
     document.getElementById('server-label').textContent = 'Demo mode';
-    document.getElementById('demo-note').style.display = '';
+    document.getElementById('demo-note').style.display  = '';
+    updateRotateHint();
   });
+
   socket.on('data', d => {
-    if (d.sensor_value !== undefined) updateSensor(d.sensor_value);
-    if (d.motor_angle  !== undefined && tab !== 'train') { motorAngle = d.motor_angle; drawGauge(); }
-    if (tab === 'play') runPlayLogic();
+    // Update sensor — always update so play logic runs every poll
+    if (d.sensor_value !== undefined) {
+      updateSensor(d.sensor_value);
+      if (tab === 'play') runPlayLogic();
+    }
+    // Update real motor position from server.
+    // In train mode, skip slider/preview update for 2s after user last touched
+    // the slider — prevents server position from fighting the user's input.
+    if (d.motor_angle !== undefined) {
+      motorAngle = d.motor_angle;
+      const sliderAge = Date.now() - sliderLastUsed;
+      if (tab !== 'train' || sliderAge > 3000) {
+        document.getElementById('angle-slider').value = motorAngle;
+        document.getElementById('preview-motor').textContent = motorAngle + '°';
+      }
+      if (tab !== 'play') drawGauge();
+    }
   });
-  socket.on('device_status', d => updateDeviceUI(d.device, d.connected, d.error));
+
+  socket.on('device_status', d => {
+    updateDeviceUI(d.device, d.connected, d.error);
+    if (d.device === 'motor') { motorConn = d.connected; updateRotateHint(); }
+  });
+
   socket.on('connect_error', () => { if (!serverConn) startDemo(); });
 } catch(e) { startDemo(); }
+
+function updateRotateHint() {
+  const hint = document.getElementById('rotate-hint');
+  if (hint) hint.style.display = (motorConn && serverConn && tab === 'train') ? '' : 'none';
+}
 
 // ── Demo ──────────────────────────────────────────────────────────────────────
 function startDemo() {
@@ -298,31 +384,35 @@ function startDemo() {
   demoInterval = setInterval(() => {
     demoT += 0.015;
     const cfg = SENSORS[sensorId];
-    const mid = (cfg.range[0] + cfg.range[1]) / 2;
-    const amp = (cfg.range[1] - cfg.range[0]) * 0.45;
-    updateSensor(Math.round(mid + amp * Math.sin(demoT)));
+    const mid = (cfg.range[0]+cfg.range[1])/2, amp = (cfg.range[1]-cfg.range[0])*.45;
+    updateSensor(Math.round(mid + amp*Math.sin(demoT)));
     if (tab === 'play') runPlayLogic();
-  }, 50);
+  }, 100);
 }
 function stopDemo() { clearInterval(demoInterval); demoInterval = null; }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function switchTab(t) {
-  tab = t;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
-  const isExplore = t==='explore', isTrain = t==='train', isPlay = t==='play';
-  document.getElementById('explore-info').style.display         = isExplore ? '' : 'none';
-  document.getElementById('train-controls').style.display       = isTrain   ? '' : 'none';
-  document.getElementById('play-info').style.display            = isPlay && trainingData.length>=2 ? '' : 'none';
-  document.getElementById('play-warn').style.display            = isPlay && trainingData.length<2  ? '' : 'none';
-  document.getElementById('plot-card').style.display            = !isExplore ? '' : 'none';
-  document.getElementById('table-card').style.display           = !isExplore ? '' : 'none';
-  document.getElementById('angle-slider-wrap').style.display    = isTrain   ? '' : 'none';
-  document.getElementById('plot-legend').style.display          = isPlay    ? '' : 'none';
-  document.getElementById('clear-btn').style.display            = isTrain && trainingData.length>0 ? '' : 'none';
-  document.getElementById('predicted-tag').style.display        = isPlay    ? '' : 'none';
-  document.getElementById('gauge').style.cursor                 = isTrain   ? 'pointer' : 'default';
+  tab = t; applyTheme(t);
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===t));
+  const E=t==='explore', TR=t==='train', PL=t==='play';
+  show('explore-info',       E);
+  show('train-controls',     TR);
+  show('play-info',          PL && trainingData.length>=2);
+  show('play-warn',          PL && trainingData.length<2);
+  show('plot-card',          !E);
+  show('table-card',         !E);
+  show('angle-slider-wrap',  TR);
+  show('plot-legend',        PL);
+  show('clear-btn',          TR && trainingData.length>0);
+  show('predicted-tag',      PL);
+  document.getElementById('gauge').style.cursor = TR ? 'crosshair' : 'default';
+  updateRotateHint();
   renderTable(); renderPlot(); drawGauge();
+}
+function show(id, visible) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = visible ? '' : 'none';
 }
 
 // ── Sensor ────────────────────────────────────────────────────────────────────
@@ -331,9 +421,9 @@ function setSensor(sid) {
   document.querySelectorAll('.sensor-opt').forEach(el => el.classList.toggle('sel', el.dataset.sid===sid));
   const cfg = SENSORS[sid];
   document.getElementById('sensor-card-label').textContent = cfg.label;
-  document.getElementById('sensor-desc').textContent = cfg.desc;
-  document.getElementById('smin-label').textContent = cfg.range[0];
-  document.getElementById('smax-label').textContent = cfg.range[1];
+  document.getElementById('sensor-desc').textContent       = cfg.desc;
+  document.getElementById('smin-label').textContent        = cfg.range[0];
+  document.getElementById('smax-label').textContent        = cfg.range[1];
   if (socket && serverConn) socket.emit('set_sensor_type', {sensor: sid});
   demoT = 0;
   if (chartInst) { chartInst.destroy(); chartInst = null; }
@@ -341,78 +431,91 @@ function setSensor(sid) {
 
 function updateSensor(val) {
   sensorValue = val;
-  document.getElementById('sensor-num').textContent = val;
-  document.getElementById('preview-sensor').textContent = val;
+  document.getElementById('sensor-num').textContent      = val;
+  document.getElementById('preview-sensor').textContent  = val;
   const cfg = SENSORS[sensorId];
   const pct = Math.max(0, Math.min(100, (val-cfg.range[0])/(cfg.range[1]-cfg.range[0])*100));
   document.getElementById('sensor-bar').style.width = pct + '%';
 }
 
 // ── Motor ─────────────────────────────────────────────────────────────────────
-function setMotorAngle(a) {
+let sliderLastUsed = 0;  // timestamp of last slider/gauge interaction
+
+function sliderChanged(a) {
+  sliderLastUsed = Date.now();
   motorAngle = a;
-  document.getElementById('angle-slider').value = a;
   document.getElementById('preview-motor').textContent = a + '°';
   drawGauge();
+  if (socket && serverConn && motorConn) socket.emit('move_motor', {angle: a});
 }
 
 function gaugeClick(e) {
   if (tab !== 'train') return;
+  sliderLastUsed = Date.now();
   const rect = document.getElementById('gauge').getBoundingClientRect();
-  let deg = Math.atan2(e.clientY-rect.top-100, e.clientX-rect.left-100) * 180/Math.PI + 90;
+  let deg = Math.atan2(e.clientY-rect.top-100, e.clientX-rect.left-100)*180/Math.PI + 90;
   if (deg < 0) deg += 360;
-  setMotorAngle(Math.round(deg) % 360);
+  const a = Math.round(deg) % 360;
+  motorAngle = a;
+  document.getElementById('angle-slider').value = a;
+  document.getElementById('preview-motor').textContent = a + '°';
+  drawGauge();
+  if (socket && serverConn && motorConn) socket.emit('move_motor', {angle: a});
 }
 
-function drawGauge() {
+function drawGauge(overrideAngle) {
   const svg = document.getElementById('gauge');
-  const cx=100, cy=100, R=72, sw=14, a=motorAngle;
+  const cx=100, cy=100, R=72, sw=14;
+  const a = overrideAngle !== undefined ? overrideAngle : motorAngle;
+  const themeColor = TAB_THEMES[tab].color;
+
   function pt(deg) {
-    const r=(deg-90)*Math.PI/180;
+    const r = (deg-90)*Math.PI/180;
     return [cx+R*Math.cos(r), cy+R*Math.sin(r)];
   }
   function arc(deg) {
     const c=Math.min(deg,359.9), [sx,sy]=pt(0), [ex,ey]=pt(c);
     return `M${sx} ${sy}A${R} ${R} 0 ${c>180?1:0} 1 ${ex} ${ey}`;
   }
-  const [nx,ny]=pt(a);
-  let ticks='';
-  for(let i=0;i<12;i++){
-    const [x1,y1]=pt(i*30), r=(i*30-90)*Math.PI/180, or=R+sw*.6;
-    ticks+=`<line x1="${x1}" y1="${y1}" x2="${cx+or*Math.cos(r)}" y2="${cy+or*Math.sin(r)}" stroke="#CBD5E1" stroke-width="1.5"/>`;
+  const [nx,ny] = pt(a);
+  let ticks = '';
+  for (let i=0; i<12; i++) {
+    const [x1,y1]=pt(i*30), r=(i*30-90)*Math.PI/180, or=R+sw*.6, isMajor=i%3===0;
+    ticks += `<line x1="${x1}" y1="${y1}" x2="${cx+or*Math.cos(r)}" y2="${cy+or*Math.sin(r)}" stroke="${isMajor?'#9CA3AF':'#D1D5DB'}" stroke-width="${isMajor?2:1.5}"/>`;
   }
-  svg.innerHTML=`
-    <circle cx="${cx}" cy="${cy}" r="${R+sw/2+4}" fill="#F1F5F9"/>
-    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#E2E8F0" stroke-width="${sw}"/>
-    ${a>0?`<path d="${arc(a)}" fill="none" stroke="#6366F1" stroke-width="${sw}" stroke-linecap="round"/>`:''}
+  svg.innerHTML = `
+    <defs><filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <circle cx="${cx}" cy="${cy}" r="${R+sw/2+6}" fill="${TAB_THEMES[tab].light}"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#E5E7EB" stroke-width="${sw}"/>
+    ${a>0?`<path d="${arc(a)}" fill="none" stroke="${themeColor}" stroke-width="${sw}" stroke-linecap="round" filter="url(#glow)"/>`:''}
     ${ticks}
-    <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="#0F172A" stroke-width="2.5" stroke-linecap="round"/>
-    <circle cx="${cx}" cy="${cy}" r="5" fill="#0F172A"/>
-    <text x="${cx}" y="${cy+44}" text-anchor="middle" font-size="24" font-weight="500" fill="#0F172A" font-family="'JetBrains Mono',monospace">${a}°</text>
-    <text x="${cx}" y="18" text-anchor="middle" font-size="12" fill="#94A3B8">0°</text>
-    <text x="${cx}" y="196" text-anchor="middle" font-size="12" fill="#94A3B8">180°</text>
-    ${tab==='train'?`<text x="${cx}" y="${cy+76}" text-anchor="middle" font-size="11" fill="#6366F1">click or use slider to set angle</text>`:''}
+    <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="#1F2937" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="7" fill="#1F2937"/>
+    <circle cx="${cx}" cy="${cy}" r="4" fill="${themeColor}"/>
+    <text x="${cx}" y="${cy+42}" text-anchor="middle" font-size="26" font-weight="800" fill="${themeColor}" font-family="'JetBrains Mono',monospace">${a}°</text>
+    <text x="${cx}" y="16"   text-anchor="middle" font-size="11" fill="#9CA3AF" font-family="'Nunito',sans-serif" font-weight="700">0°</text>
+    <text x="${cx}" y="196"  text-anchor="middle" font-size="11" fill="#9CA3AF" font-family="'Nunito',sans-serif" font-weight="700">180°</text>
+    ${tab==='train'&&!motorConn?`<text x="${cx}" y="${cy+72}" text-anchor="middle" font-size="11" fill="${themeColor}" font-family="'Nunito',sans-serif" font-weight="700">click to set angle</text>`:''}
   `;
 }
 
 // ── Training data ─────────────────────────────────────────────────────────────
 function addDataPoint() {
   trainingData.push({sensor: sensorValue, motor: motorAngle});
-  document.getElementById('clear-btn').style.display = '';
+  show('clear-btn', true);
   renderTable(); renderPlot();
 }
-
 function deletePoint(i) {
-  trainingData.splice(i,1);
-  document.getElementById('clear-btn').style.display = trainingData.length>0 ? '' : 'none';
+  trainingData.splice(i, 1);
+  show('clear-btn', trainingData.length > 0);
   if (chartInst) { chartInst.destroy(); chartInst = null; }
   renderTable(); renderPlot();
 }
-
 function clearData() {
   if (!confirm('Clear all training data?')) return;
   trainingData = [];
-  document.getElementById('clear-btn').style.display = 'none';
+  show('clear-btn', false);
   if (chartInst) { chartInst.destroy(); chartInst = null; }
   renderTable(); renderPlot();
 }
@@ -420,7 +523,7 @@ function clearData() {
 // ── Interpolation ─────────────────────────────────────────────────────────────
 function predictAngle(sv) {
   if (trainingData.length < 2) return null;
-  const s = [...trainingData].sort((a,b)=>a.sensor-b.sensor);
+  const s = [...trainingData].sort((a,b) => a.sensor-b.sensor);
   if (sv <= s[0].sensor) return s[0].motor;
   if (sv >= s[s.length-1].sensor) return s[s.length-1].motor;
   for (let i=0; i<s.length-1; i++) {
@@ -430,19 +533,34 @@ function predictAngle(sv) {
   return null;
 }
 
+// ── Play logic — FIX: emit BEFORE updating motorAngle ────────────────────────
 function runPlayLogic() {
   const pred = predictAngle(sensorValue);
-  const tag=document.getElementById('predicted-tag');
-  const info=document.getElementById('play-info');
-  const warn=document.getElementById('play-warn');
+  const tag  = document.getElementById('predicted-tag');
+  const info = document.getElementById('play-info');
+  const warn = document.getElementById('play-warn');
+
   if (pred !== null) {
-    tag.style.display=''; tag.textContent=`Predicted: ${pred}°`;
-    info.style.display=''; info.textContent=`Sensor ${sensorValue} → motor ${pred}° (learned mapping)`;
-    warn.style.display='none';
-    motorAngle = pred; drawGauge();
-    if (socket && serverConn) socket.emit('move_motor', {angle: pred});
+    show('predicted-tag', true);
+    tag.textContent = `🎯 Predicted: ${pred}°`;
+    show('play-info', true);
+    info.textContent = `Sensor ${sensorValue} → motor ${pred}° (learned mapping)`;
+    show('play-warn', false);
+
+    // ✅ KEY FIX: check diff against real motorAngle BEFORE overriding it
+    // motorAngle here is the real motor position from the server
+    if (socket && serverConn && Math.abs(pred - motorAngle) > 5) {
+      socket.emit('move_motor', {angle: pred});
+    }
+
+    // Draw gauge showing predicted target; don't update motorAngle state
+    // (motorAngle stays as real position so next diff check is accurate)
+    drawGauge(pred);
+
   } else {
-    tag.style.display='none'; info.style.display='none'; warn.style.display='';
+    show('predicted-tag', false);
+    show('play-info', false);
+    show('play-warn', true);
   }
   renderPlot();
 }
@@ -450,109 +568,72 @@ function runPlayLogic() {
 // ── Table ─────────────────────────────────────────────────────────────────────
 function renderTable() {
   document.getElementById('table-label').textContent = `Training values (${trainingData.length})`;
-  const empty=document.getElementById('table-empty'), wrap=document.getElementById('table-wrap');
-  if (trainingData.length===0) { empty.style.display=''; wrap.style.display='none'; return; }
+  const empty = document.getElementById('table-empty'), wrap = document.getElementById('table-wrap');
+  if (trainingData.length === 0) { empty.style.display=''; wrap.style.display='none'; return; }
   empty.style.display='none'; wrap.style.display='';
-  document.getElementById('table-body').innerHTML = trainingData.map((pt,i)=>`
+  document.getElementById('table-body').innerHTML = trainingData.map((pt,i) => `
     <tr>
-      <td style="color:#94A3B8;font-size:11px;">${i+1}</td>
+      <td style="color:#9CA3AF;font-size:11px;font-weight:700;">${i+1}</td>
       <td class="mono accent">${pt.sensor}</td>
       <td class="mono">${pt.motor}°</td>
-      ${tab==='train'?`<td><button class="del-btn" onclick="deletePoint(${i})">×</button></td>`:'<td></td>'}
+      ${tab==='train' ? `<td><button class="del-btn" onclick="deletePoint(${i})">×</button></td>` : '<td></td>'}
     </tr>
   `).join('');
 }
 
-// ── Chart.js scatter plot ─────────────────────────────────────────────────────
+// ── Chart.js ──────────────────────────────────────────────────────────────────
 function renderPlot() {
   const wrap = document.getElementById('scatter-wrap');
-
   if (trainingData.length === 0) {
     if (chartInst) { chartInst.destroy(); chartInst = null; }
-    wrap.innerHTML = '<div class="plot-empty">No data points yet — add some above</div>';
+    wrap.innerHTML = '<div class="plot-empty"><span>📊</span>No data points yet — add some in Train mode!</div>';
     return;
   }
-
   const sVals = trainingData.map(d => d.sensor);
-  const sMin  = Math.min(...sVals);
-  const sMax  = Math.max(...sVals);
-  const sPad  = Math.max((sMax - sMin) * 0.12, 5);
-  const xMin  = Math.floor(sMin - sPad);
-  const xMax  = Math.ceil(sMax + sPad);
-  const pred  = tab === 'play' ? predictAngle(sensorValue) : null;
+  const sMin = Math.min(...sVals), sMax = Math.max(...sVals);
+  const sPad = Math.max((sMax-sMin)*.12, 5);
+  const xMin = Math.floor(sMin-sPad), xMax = Math.ceil(sMax+sPad);
+  const pred = tab === 'play' ? predictAngle(sensorValue) : null;
+  const themeColor = TAB_THEMES[tab].color;
 
-  const datasets = [
-    {
-      label: 'Training points',
-      data: trainingData.map(d => ({x: d.sensor, y: d.motor})),
-      backgroundColor: '#6366F1CC',
-      pointRadius: 7,
-      pointHoverRadius: 9,
-      type: 'scatter',
-    }
-  ];
-
+  const datasets = [{
+    label: 'Training points',
+    data: trainingData.map(d => ({x:d.sensor, y:d.motor})),
+    backgroundColor: themeColor+'CC', borderColor: themeColor, borderWidth: 2,
+    pointRadius: 8, pointHoverRadius: 10, type: 'scatter',
+  }];
   if (tab === 'play') {
-    datasets.push({
-      label: 'Current sensor',
-      data: [{x: sensorValue, y: 0}, {x: sensorValue, y: 360}],
-      type: 'line',
-      borderColor: '#64748B',
-      borderDash: [5, 4],
-      borderWidth: 2,
-      pointRadius: 0,
-      fill: false,
-    });
-    if (pred !== null) {
-      datasets.push({
-        label: 'Predicted',
-        data: [{x: xMin, y: pred}, {x: xMax, y: pred}],
-        type: 'line',
-        borderColor: '#6366F1',
-        borderDash: [5, 4],
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: false,
-      });
-    }
+    datasets.push({ label:'Current sensor', data:[{x:sensorValue,y:0},{x:sensorValue,y:360}],
+      type:'line', borderColor:'#64748B', borderDash:[5,4], borderWidth:2, pointRadius:0, fill:false });
+    if (pred !== null)
+      datasets.push({ label:'Predicted', data:[{x:xMin,y:pred},{x:xMax,y:pred}],
+        type:'line', borderColor:'#A855F7', borderDash:[5,4], borderWidth:2, pointRadius:0, fill:false });
   }
 
   if (chartInst) {
     chartInst.data.datasets = datasets;
     chartInst.options.scales.x.min = xMin;
     chartInst.options.scales.x.max = xMax;
-    chartInst.update('none');
-    return;
+    chartInst.update('none'); return;
   }
-
   wrap.innerHTML = '<canvas id="scatter-canvas"></canvas>';
   chartInst = new Chart(document.getElementById('scatter-canvas'), {
-    type: 'scatter',
-    data: { datasets },
+    type: 'scatter', data: {datasets},
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
+      responsive: true, maintainAspectRatio: false, animation: false,
       scales: {
-        x: {
-          type: 'linear', min: xMin, max: xMax,
-          title: { display:true, text:'Sensor value', color:'#64748B', font:{size:11} },
-          grid: { color:'#F1F5F9' },
-          ticks: { color:'#94A3B8', font:{size:10} }
-        },
-        y: {
-          type: 'linear', min: 0, max: 360,
-          title: { display:true, text:'Motor °', color:'#64748B', font:{size:11} },
-          grid: { color:'#F1F5F9' },
-          ticks: { color:'#94A3B8', font:{size:10} }
-        }
+        x: { type:'linear', min:xMin, max:xMax,
+             title:{display:true,text:'Sensor value',color:'#6B7280',font:{size:11,family:'Nunito',weight:'700'}},
+             grid:{color:'#F3F4F6'}, ticks:{color:'#9CA3AF',font:{size:10}} },
+        y: { type:'linear', min:0, max:360,
+             title:{display:true,text:'Motor angle (°)',color:'#6B7280',font:{size:11,family:'Nunito',weight:'700'}},
+             grid:{color:'#F3F4F6'}, ticks:{color:'#9CA3AF',font:{size:10}} }
       },
       plugins: {
-        legend: { display: false },
-        tooltip: {
-          filter: item => item.datasetIndex === 0,
-          callbacks: { label: ctx => `Sensor: ${ctx.parsed.x}  →  Motor: ${ctx.parsed.y}°` }
-        }
+        legend: {display:false},
+        tooltip: { filter: item => item.datasetIndex===0,
+          callbacks: {label: ctx => `Sensor: ${ctx.parsed.x}  →  Motor: ${ctx.parsed.y}°`},
+          titleFont:{family:'Nunito'}, bodyFont:{family:'Nunito',weight:'700'} }
       }
     }
   });
@@ -560,16 +641,15 @@ function renderPlot() {
 
 // ── Devices ───────────────────────────────────────────────────────────────────
 function updateDeviceUI(device, connected, error) {
-  const dot=document.getElementById('dot-'+device);
-  const btn=document.getElementById('btn-'+device);
+  const dot=document.getElementById('dot-'+device), btn=document.getElementById('btn-'+device);
   if (!dot||!btn) return;
   dot.classList.toggle('on', connected);
   if (connected) {
     btn.textContent='Disconnect'; btn.classList.add('disconnect');
-    btn.onclick=()=>disconnectDevice(device);
+    btn.onclick = () => disconnectDevice(device);
   } else {
     btn.textContent='Connect'; btn.classList.remove('disconnect');
-    btn.onclick=()=>openModal(device);
+    btn.onclick = () => openModal(device);
   }
   if (error) {
     const err=document.getElementById('modal-error');
@@ -578,45 +658,39 @@ function updateDeviceUI(device, connected, error) {
     if (c) c.classList.remove('show');
   }
 }
-
 function disconnectDevice(device) {
-  if (socket&&serverConn) socket.emit('disconnect_device',{device});
-  else updateDeviceUI(device,false);
+  if (socket && serverConn) socket.emit('disconnect_device', {device});
+  else updateDeviceUI(device, false);
 }
-
 function openModal(device) {
-  modalDevice=device;
-  const names={motor:'Single motor',colorsensor:'Color sensor',controller:'Controller',doublemotor:'Double motor'};
-  document.getElementById('modal-title').textContent='Connect '+(names[device]||device);
+  modalDevice = device;
+  const names = {motor:'Single motor', colorsensor:'Color sensor', controller:'Controller', doublemotor:'Double motor'};
+  document.getElementById('modal-title').textContent = 'Connect '+(names[device]||device);
   document.getElementById('modal-error').classList.remove('show');
   document.getElementById('connecting-msg').classList.remove('show');
-  document.getElementById('modal-serial').value='';
-  document.getElementById('modal').style.display='flex';
+  document.getElementById('modal-serial').value = '';
+  document.getElementById('modal').style.display = 'flex';
 }
-
-function closeModal() {
-  document.getElementById('modal').style.display='none';
-  modalDevice=null;
-}
-
+function closeModal() { document.getElementById('modal').style.display='none'; modalDevice=null; }
 function doConnect() {
   if (!modalDevice) return;
-  const color=document.getElementById('modal-color').value;
-  const serial=document.getElementById('modal-serial').value.trim();
-  if (serial.length!==4) {
+  const color  = document.getElementById('modal-color').value;
+  const serial = document.getElementById('modal-serial').value.trim();
+  if (serial.length !== 4) {
     const err=document.getElementById('modal-error');
-    err.textContent='Serial must be 4 digits.'; err.classList.add('show'); return;
+    err.textContent='Serial must be exactly 4 digits.'; err.classList.add('show'); return;
   }
   document.getElementById('modal-error').classList.remove('show');
   if (!serverConn) {
     const err=document.getElementById('modal-error');
-    err.textContent='Server not running. Start server.py first.'; err.classList.add('show'); return;
+    err.textContent='Server not running — start server.py first!'; err.classList.add('show'); return;
   }
   document.getElementById('connecting-msg').classList.add('show');
-  socket.emit('connect_device',{device:modalDevice,card_color:color,card_serial:serial});
-  setTimeout(closeModal,5000);
+  socket.emit('connect_device', {device:modalDevice, card_color:color, card_serial:serial});
+  setTimeout(closeModal, 5000);
 }
 
+applyTheme('explore');
 startDemo();
 drawGauge();
 </script>
