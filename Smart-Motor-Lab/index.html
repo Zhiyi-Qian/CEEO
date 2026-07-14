@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Motor Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+<style>
+:root{ --theme:#F97316;--theme-light:#FFF7ED;--theme-mid:#FFEDD5;--theme-border:#FED7AA;--theme-dark:#C2410C; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito',sans-serif;background:#F3F4F6;color:#1F2937;min-height:100vh}
+
+.header{background:linear-gradient(135deg,#1E3A5F,#2D1B69);padding:0 24px;display:flex;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.25)}
+.logo{padding:14px 0;margin-right:32px}
+.logo-name{font-size:18px;font-weight:800;color:#fff;line-height:1}
+.logo-sub{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}
+.tabs{display:flex;gap:8px;margin-right:auto}
+.tab-btn{padding:8px 20px;border:none;cursor:pointer;font-size:14px;font-family:'Nunito',sans-serif;font-weight:700;border-radius:20px;display:flex;align-items:center;gap:7px;color:rgba(255,255,255,.6);background:rgba(255,255,255,.08);transition:all .2s}
+.tab-btn:hover{background:rgba(255,255,255,.15);color:#fff}
+.tab-btn.t-explore.active{background:#06B6D4;box-shadow:0 0 16px rgba(6,182,212,.5);color:#fff}
+.tab-btn.t-train.active{background:#F97316;box-shadow:0 0 16px rgba(249,115,22,.5);color:#fff}
+.tab-btn.t-play.active{background:#A855F7;box-shadow:0 0 16px rgba(168,85,247,.5);color:#fff}
+.server-badge{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;background:rgba(255,255,255,.1);font-size:12px;color:rgba(255,255,255,.8);font-weight:600}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#6B7280}
+.status-dot.connected{background:#22C55E;box-shadow:0 0 8px #22C55E}
+.status-dot.demo{background:#FCD34D;box-shadow:0 0 8px #FCD34D}
+
+.body{display:flex;gap:18px;padding:20px;align-items:flex-start;max-width:1200px;margin:0 auto}
+.sidebar{width:230px;flex-shrink:0;display:flex;flex-direction:column;gap:14px}
+.main{flex:1;display:flex;flex-direction:column;gap:16px}
+.top-row{display:flex;gap:16px}
+
+.card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-top:4px solid var(--theme)}
+.card.no-stripe{border-top-color:#E5E7EB}
+.card-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--theme);margin-bottom:14px}
+.card.no-stripe .card-label{color:#9CA3AF}
+
+/* Sensor selector */
+.sensor-opt{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;margin-bottom:8px;cursor:pointer;border:2px solid transparent;background:#F9FAFB;transition:all .2s}
+.sensor-opt:hover{background:var(--theme-light);border-color:var(--theme-border)}
+.sensor-opt.sel{background:var(--theme-light);border-color:var(--theme)}
+.sensor-opt-name{font-size:13px;font-weight:700;color:#1F2937}
+.sensor-opt.sel .sensor-opt-name{color:var(--theme-dark)}
+.sensor-opt-desc{font-size:11px;color:#9CA3AF;margin-top:1px;font-weight:600}
+
+/* Devices */
+.device-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px dashed #F3F4F6}
+.device-row:last-child{border-bottom:none}
+.dev-left{display:flex;align-items:center;gap:9px}
+.dev-dot{width:9px;height:9px;border-radius:50%;background:#D1D5DB;flex-shrink:0;transition:all .3s}
+.dev-dot.on{background:#22C55E;box-shadow:0 0 6px #22C55E88}
+.dev-name{font-size:13px;color:#374151;font-weight:600}
+.dev-badge{font-size:10px;padding:2px 7px;border-radius:6px;font-weight:700;margin-left:2px}
+.dev-badge.out{background:#DCFCE7;color:#166534}
+.dev-badge.sense{background:#EEF2FF;color:#3730A3}
+.dev-btn{font-size:11px;padding:4px 11px;border-radius:8px;border:2px solid #E5E7EB;background:none;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:700;color:#6B7280;transition:all .15s}
+.dev-btn:hover{border-color:var(--theme);color:var(--theme)}
+.dev-btn.disconnect{color:#EF4444;border-color:#FECACA}
+.dev-btn.disconnect:hover{background:#FEF2F2}
+.demo-note{background:#FEFCE8;border:2px dashed #FCD34D;border-radius:12px;padding:12px 14px;font-size:12px;color:#92400E;line-height:1.6;font-weight:600}
+
+/* Sub-mode toggle */
+.sub-mode-wrap{display:flex;justify-content:center;margin-bottom:16px}
+.sub-mode-toggle{display:flex;background:#F3F4F6;border-radius:12px;padding:3px;gap:2px}
+.sub-mode-btn{padding:7px 18px;border:none;border-radius:9px;cursor:pointer;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:#6B7280;background:none;transition:all .2s}
+.sub-mode-btn.active{background:var(--theme);color:#fff;box-shadow:0 2px 8px rgba(249,115,22,.35)}
+
+/* Output cards */
+.motor-card{flex:1;display:flex;flex-direction:column;align-items:center}
+.sensor-card{flex:1}
+.predicted-tag{margin-top:10px;font-size:15px;color:#A855F7;font-weight:800;text-align:center}
+.angle-slider{width:100%;margin-top:12px;accent-color:var(--theme);cursor:pointer}
+.slider-labels{display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF;margin-top:4px;font-weight:700}
+.info-rotate{background:#EEF2FF;color:#3730A3;border-left:4px solid #6366F1;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:700;margin-bottom:10px}
+
+/* Speed widgets */
+.speed-section{width:100%;margin-bottom:16px}
+.speed-section:last-child{margin-bottom:0}
+.speed-side-label{font-size:12px;font-weight:800;color:#374151;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.side-pill{font-size:10px;padding:2px 9px;border-radius:10px;font-weight:700}
+.left-pill{background:#DBEAFE;color:#1D4ED8}
+.right-pill{background:#FCE7F3;color:#9D174D}
+.speed-big{font-size:40px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--theme);line-height:1;margin-bottom:8px;text-align:center}
+.speed-bar-track{height:10px;background:#F3F4F6;border-radius:5px;position:relative;overflow:hidden;margin-bottom:6px}
+.speed-bar-fill{position:absolute;top:0;height:100%;border-radius:5px;transition:all .12s ease;background:var(--theme)}
+.speed-slider{width:100%;accent-color:var(--theme);cursor:pointer}
+.speed-slider-labels{display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF;font-weight:700}
+.no-motor-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;color:#9CA3AF;font-size:14px;font-weight:600;gap:8px;text-align:center}
+.no-motor-msg span{font-size:36px}
+.double-pred-row{display:flex;gap:12px;margin-top:10px}
+.pred-chip{flex:1;padding:10px;border-radius:10px;text-align:center;font-weight:700;font-size:13px}
+.pred-chip.left-chip{background:#DBEAFE;color:#1D4ED8}
+.pred-chip.right-chip{background:#FCE7F3;color:#9D174D}
+.pred-chip .chip-num{font-size:22px;font-family:'JetBrains Mono',monospace;font-weight:800;display:block}
+
+/* Sensor card */
+.big-reading{text-align:center;margin-bottom:16px}
+.big-num{font-size:68px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1;color:var(--theme)}
+.big-desc{font-size:12px;color:#9CA3AF;margin-top:6px;font-weight:700;letter-spacing:.05em}
+.sensor-bar-bg{height:10px;background:#F3F4F6;border-radius:5px;overflow:hidden;margin-bottom:4px}
+.sensor-bar-fill{height:100%;background:var(--theme);border-radius:5px;transition:width .12s ease}
+.sensor-bar-labels{display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF;margin-bottom:16px;font-weight:700}
+
+.info-box{padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.6;font-weight:600}
+.info-explore{background:#EFF6FF;color:#1D4ED8;border-left:4px solid #3B82F6}
+.info-warn{background:#FEFCE8;color:#854D0E;border-left:4px solid #FCD34D}
+.info-success{background:#F0FDF4;color:#166534;border-left:4px solid #22C55E}
+.save-preview{padding:10px 14px;background:#F9FAFB;border-radius:10px;font-size:13px;color:#6B7280;margin-bottom:12px;font-weight:600;border:1px dashed #D1D5DB}
+.add-btn{width:100%;padding:13px 0;border-radius:12px;border:none;background:var(--theme);color:#fff;font-weight:800;font-size:15px;cursor:pointer;font-family:'Nunito',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(249,115,22,.35);transition:filter .15s}
+.add-btn:hover{filter:brightness(1.07)}
+.add-btn:active{transform:scale(.97)}
+
+/* Plot + table */
+#scatter-wrap{position:relative;height:260px}
+.plot-empty{height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#9CA3AF;font-size:14px;font-weight:600;gap:8px}
+.plot-empty span{font-size:32px}
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{padding:8px 12px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;border-bottom:2px solid #F3F4F6}
+.data-table tr:nth-child(even) td{background:#F9FAFB}
+.data-table td{padding:10px 12px;border-bottom:1px solid #F3F4F6;font-weight:600}
+.mono{font-family:'JetBrains Mono',monospace}
+.accent{color:var(--theme);font-weight:700}
+.accent-blue{color:#2563EB;font-weight:700;font-family:'JetBrains Mono',monospace}
+.accent-pink{color:#DB2777;font-weight:700;font-family:'JetBrains Mono',monospace}
+.table-wrap{overflow-y:auto;max-height:260px;border-radius:8px;overflow:hidden}
+.empty-msg{text-align:center;padding:28px 0;color:#9CA3AF;font-size:14px;font-weight:600}
+.del-btn{width:24px;height:24px;border-radius:8px;border:none;background:#FEE2E2;color:#EF4444;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.del-btn:hover{background:#FECACA}
+.clear-btn{font-size:12px;color:#EF4444;background:#FEF2F2;border:2px solid #FECACA;border-radius:8px;padding:5px 12px;cursor:pointer;font-family:'Nunito',sans-serif;font-weight:700}
+.legend{display:flex;gap:14px;font-size:12px;color:#6B7280;align-items:center;font-weight:700}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;z-index:999;backdrop-filter:blur(4px)}
+.modal{background:#fff;border-radius:20px;padding:28px;width:360px;box-shadow:0 24px 60px rgba(0,0,0,.2);border-top:6px solid var(--theme)}
+.modal h3{font-size:18px;font-weight:800;margin-bottom:20px;color:#1F2937}
+.modal label{font-size:12px;color:#6B7280;font-weight:700;display:block;margin-bottom:6px;margin-top:16px;text-transform:uppercase;letter-spacing:.05em}
+.modal select,.modal input{width:100%;padding:10px 14px;border:2px solid #E5E7EB;border-radius:10px;font-size:14px;font-family:'Nunito',sans-serif;font-weight:600;background:#F9FAFB;outline:none;transition:border-color .2s}
+.modal select:focus,.modal input:focus{border-color:var(--theme)}
+.modal-btns{display:flex;gap:10px;margin-top:24px}
+.modal-cancel{flex:1;padding:11px;border:2px solid #E5E7EB;border-radius:10px;background:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;color:#6B7280}
+.modal-connect{flex:2;padding:11px;border:none;border-radius:10px;background:var(--theme);color:#fff;cursor:pointer;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800}
+.modal-connect:hover{filter:brightness(1.05)}
+.error-msg{margin-top:10px;font-size:12px;color:#EF4444;padding:9px 12px;background:#FEF2F2;border-radius:8px;display:none;font-weight:700}
+.error-msg.show{display:block}
+.connecting-msg{margin-top:10px;font-size:12px;color:var(--theme);display:none;font-weight:700}
+.connecting-msg.show{display:block}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-name">⚡ Smart Motor Lab</div>
+    <div class="logo-sub">LEGO CS &amp; AI Kit</div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn t-explore active" data-tab="explore" onclick="switchTab('explore')">🔭 Explore</button>
+    <button class="tab-btn t-train"          data-tab="train"   onclick="switchTab('train')">🧠 Train</button>
+    <button class="tab-btn t-play"           data-tab="play"    onclick="switchTab('play')">▶️ Play</button>
+  </div>
+  <div class="server-badge">
+    <div class="status-dot demo" id="server-dot"></div>
+    <span id="server-label">Demo mode</span>
+  </div>
+</div>
+
+<div class="body">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="card">
+      <div class="card-label">Sensor input</div>
+      <div class="sensor-opt sel" data-sid="color" onclick="setSensor('color')">
+        <span style="font-size:22px;width:32px;text-align:center">🎨</span>
+        <div><div class="sensor-opt-name">Color sensor</div><div class="sensor-opt-desc">Hue · 0 – 360</div></div>
+      </div>
+      <div class="sensor-opt" data-sid="controller" onclick="setSensor('controller')">
+        <span style="font-size:22px;width:32px;text-align:center">🕹️</span>
+        <div><div class="sensor-opt-name">Controller</div><div class="sensor-opt-desc">Lever · −100 – 100%</div></div>
+      </div>
+      <div class="sensor-opt" data-sid="doublemotor" onclick="setSensor('doublemotor')">
+        <span style="font-size:22px;width:32px;text-align:center">⚙️</span>
+        <div><div class="sensor-opt-name">Double motor</div><div class="sensor-opt-desc">Tilt · −90 – 90°</div></div>
+      </div>
+    </div>
+
+    <div class="card no-stripe">
+      <div class="card-label">Devices</div>
+      <div class="device-row">
+        <div class="dev-left"><div class="dev-dot" id="dot-motor"></div><span class="dev-name">Single motor</span><span class="dev-badge out">OUT</span></div>
+        <button class="dev-btn" id="btn-motor" onclick="openModal('motor')">Connect</button>
+      </div>
+      <div class="device-row">
+        <div class="dev-left"><div class="dev-dot" id="dot-doublemotor"></div><span class="dev-name">Double motor</span><span class="dev-badge out">OUT</span><span class="dev-badge sense">IN</span></div>
+        <button class="dev-btn" id="btn-doublemotor" onclick="openModal('doublemotor')">Connect</button>
+      </div>
+      <div class="device-row">
+        <div class="dev-left"><div class="dev-dot" id="dot-colorsensor"></div><span class="dev-name">Color sensor</span><span class="dev-badge sense">IN</span></div>
+        <button class="dev-btn" id="btn-colorsensor" onclick="openModal('colorsensor')">Connect</button>
+      </div>
+      <div class="device-row">
+        <div class="dev-left"><div class="dev-dot" id="dot-controller"></div><span class="dev-name">Controller</span><span class="dev-badge sense">IN</span></div>
+        <button class="dev-btn" id="btn-controller" onclick="openModal('controller')">Connect</button>
+      </div>
+    </div>
+
+    <div class="demo-note" id="demo-note">
+      📡 <strong>Demo mode</strong> — run <code>python smart_motor_server.py</code> and reload to use real devices.
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="top-row">
+
+      <!-- Output panel -->
+      <div class="card motor-card" id="output-card">
+
+        <!-- Position / Speed toggle (shown when any motor connected) -->
+        <div class="sub-mode-wrap" id="sub-mode-wrap" style="display:none;">
+          <div class="sub-mode-toggle">
+            <button class="sub-mode-btn active" id="smb-position" onclick="setOutputSubMode('position')">📍 Position</button>
+            <button class="sub-mode-btn"        id="smb-speed"    onclick="setOutputSubMode('speed')">⚡ Speed</button>
+          </div>
+        </div>
+
+        <!-- Single motor: Position mode -->
+        <div id="single-pos" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+          <div class="card-label" style="align-self:flex-start">Motor position</div>
+          <svg id="gauge" width="200" height="200" style="display:block;" onclick="gaugeClick(event)"></svg>
+          <div id="angle-slider-wrap" style="width:100%;display:none;">
+            <div id="rotate-hint" class="info-rotate" style="display:none;">🔄 Motor connected — rotate by hand or use the slider!</div>
+            <input type="range" class="angle-slider" id="angle-slider" min="0" max="359" value="0" oninput="sliderChanged(+this.value)" />
+            <div class="slider-labels"><span>0°</span><span>180°</span><span>359°</span></div>
+          </div>
+          <div class="predicted-tag" id="single-pos-predicted" style="display:none;"></div>
+        </div>
+
+        <!-- Single motor: Speed mode -->
+        <div id="single-spd" style="width:100%;display:none;">
+          <div class="card-label">Motor speed</div>
+          <div class="speed-section">
+            <div class="speed-big" id="single-spd-num">0<small style="font-size:20px">%</small></div>
+            <div class="speed-bar-track"><div class="speed-bar-fill" id="single-spd-bar" style="width:0%;left:50%"></div></div>
+            <input type="range" class="speed-slider" id="single-spd-slider" min="-100" max="100" value="0" oninput="setSingleSpeed(+this.value)" />
+            <div class="speed-slider-labels"><span>-100%</span><span>0</span><span>100%</span></div>
+          </div>
+          <div class="predicted-tag" id="single-spd-predicted" style="display:none;"></div>
+        </div>
+
+        <!-- Double motor: Speed mode -->
+        <div id="double-spd" style="display:none;">
+          <div class="card-label">Double motor speeds</div>
+          <div class="speed-section">
+            <div class="speed-side-label"><span class="side-pill left-pill">Left / Motor A</span></div>
+            <div class="speed-big" id="left-speed-num">0<small style="font-size:20px">%</small></div>
+            <div class="speed-bar-track"><div class="speed-bar-fill" id="left-bar" style="width:0%;left:50%"></div></div>
+            <input type="range" class="speed-slider" id="left-slider" min="-100" max="100" value="0" oninput="setLeftSpeed(+this.value)" />
+            <div class="speed-slider-labels"><span>-100</span><span>0</span><span>100</span></div>
+          </div>
+          <div class="speed-section">
+            <div class="speed-side-label"><span class="side-pill right-pill">Right / Motor B</span></div>
+            <div class="speed-big" id="right-speed-num">0<small style="font-size:20px">%</small></div>
+            <div class="speed-bar-track"><div class="speed-bar-fill" id="right-bar" style="width:0%;left:50%"></div></div>
+            <input type="range" class="speed-slider" id="right-slider" min="-100" max="100" value="0" oninput="setRightSpeed(+this.value)" />
+            <div class="speed-slider-labels"><span>-100</span><span>0</span><span>100</span></div>
+          </div>
+          <div class="double-pred-row" id="double-spd-pred" style="display:none;">
+            <div class="pred-chip left-chip">Left<span class="chip-num" id="pred-left-spd">0</span>%</div>
+            <div class="pred-chip right-chip">Right<span class="chip-num" id="pred-right-spd">0</span>%</div>
+          </div>
+        </div>
+
+        <!-- Double motor: Position mode -->
+        <div id="double-pos" style="display:none;">
+          <div class="card-label">Double motor positions</div>
+          <div class="speed-section">
+            <div class="speed-side-label"><span class="side-pill left-pill">Left / Motor A</span></div>
+            <div class="speed-big" id="left-pos-num">0<small style="font-size:20px">°</small></div>
+            <div style="height:10px;background:#F3F4F6;border-radius:5px;overflow:hidden;margin-bottom:6px;">
+              <div id="left-pos-bar" style="height:100%;background:var(--theme);border-radius:5px;width:0%;transition:width .12s"></div>
+            </div>
+            <input type="range" class="speed-slider" id="left-pos-slider" min="0" max="359" value="0" oninput="setLeftTarget(+this.value)" />
+            <div class="speed-slider-labels"><span>0°</span><span>180°</span><span>359°</span></div>
+          </div>
+          <div class="speed-section">
+            <div class="speed-side-label"><span class="side-pill right-pill">Right / Motor B</span></div>
+            <div class="speed-big" id="right-pos-num">0<small style="font-size:20px">°</small></div>
+            <div style="height:10px;background:#F3F4F6;border-radius:5px;overflow:hidden;margin-bottom:6px;">
+              <div id="right-pos-bar" style="height:100%;background:var(--theme);border-radius:5px;width:0%;transition:width .12s"></div>
+            </div>
+            <input type="range" class="speed-slider" id="right-pos-slider" min="0" max="359" value="0" oninput="setRightTarget(+this.value)" />
+            <div class="speed-slider-labels"><span>0°</span><span>180°</span><span>359°</span></div>
+          </div>
+          <div class="double-pred-row" id="double-pos-pred" style="display:none;">
+            <div class="pred-chip left-chip">Left<span class="chip-num" id="pred-left-pos">0</span>°</div>
+            <div class="pred-chip right-chip">Right<span class="chip-num" id="pred-right-pos">0</span>°</div>
+          </div>
+        </div>
+
+        <!-- No motor -->
+        <div id="no-output" class="no-motor-msg">
+          <span>🔌</span>Connect a single motor or double motor to begin training
+        </div>
+
+      </div><!-- /output-card -->
+
+      <!-- Sensor card -->
+      <div class="card sensor-card">
+        <div class="card-label" id="sensor-card-label">Color sensor</div>
+        <div class="big-reading">
+          <div class="big-num" id="sensor-num">0</div>
+          <div class="big-desc" id="sensor-desc">HUE · 0 – 360</div>
+        </div>
+        <div class="sensor-bar-bg"><div class="sensor-bar-fill" id="sensor-bar" style="width:0%"></div></div>
+        <div class="sensor-bar-labels"><span id="smin-label">0</span><span id="smax-label">360</span></div>
+
+        <div class="info-box info-explore" id="explore-info">
+          👋 This is your <strong>input</strong> — the value the motor will learn to react to.
+        </div>
+        <div id="train-controls" style="display:none;">
+          <div class="save-preview" id="save-preview">📌 Loading…</div>
+          <button class="add-btn" onclick="addDataPoint()">＋ Add data point</button>
+        </div>
+        <div class="info-box info-success" id="play-info"  style="display:none;"></div>
+        <div class="info-box info-warn"    id="play-warn"  style="display:none;">⚠️ Add at least 2 data points in Train mode first!</div>
+      </div>
+    </div><!-- /top-row -->
+
+    <!-- Plot -->
+    <div class="card" id="plot-card" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div class="card-label" style="margin:0;">Training data plot</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="legend" id="plot-legend" style="display:none;"></div>
+          <button class="clear-btn" id="clear-btn" style="display:none;" onclick="clearData()">🗑 Clear all</button>
+        </div>
+      </div>
+      <div id="scatter-wrap"><div class="plot-empty"><span>📊</span>No data points yet — add some in Train mode!</div></div>
+    </div>
+
+    <!-- Table -->
+    <div class="card" id="table-card" style="display:none;">
+      <div class="card-label" id="table-label">Training values (0)</div>
+      <div id="table-empty" class="empty-msg">📋 No data points yet.</div>
+      <div class="table-wrap" id="table-wrap" style="display:none;">
+        <table class="data-table"><thead><tr id="table-head"></tr></thead><tbody id="table-body"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div><!-- /body -->
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" style="display:none;" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modal-title">Connect device</h3>
+    <label>Card color</label>
+    <select id="modal-color">
+      <option value="AZURE">Azure</option><option value="RED">Red</option>
+      <option value="PURPLE">Purple</option><option value="BLUE">Blue</option>
+      <option value="GREEN">Green</option><option value="YELLOW">Yellow</option>
+      <option value="ORANGE">Orange</option><option value="WHITE">White</option>
+    </select>
+    <label>Card serial (4 digits on the card)</label>
+    <input type="text" id="modal-serial" maxlength="4" placeholder="e.g. 5164" />
+    <div class="connecting-msg" id="connecting-msg">🔵 Connecting via Bluetooth…</div>
+    <div class="error-msg" id="modal-error"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-connect" onclick="doConnect()">Connect!</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TAB_THEMES = {
+  explore:{ color:'#06B6D4',light:'#ECFEFF',mid:'#CFFAFE',border:'#A5F3FC',dark:'#0E7490' },
+  train:  { color:'#F97316',light:'#FFF7ED',mid:'#FFEDD5',border:'#FED7AA',dark:'#C2410C' },
+  play:   { color:'#A855F7',light:'#FAF5FF',mid:'#F3E8FF',border:'#E9D5FF',dark:'#7E22CE' },
+};
+function applyTheme(t){
+  const th=TAB_THEMES[t],r=document.documentElement.style;
+  r.setProperty('--theme',th.color);r.setProperty('--theme-light',th.light);
+  r.setProperty('--theme-mid',th.mid);r.setProperty('--theme-border',th.border);
+  r.setProperty('--theme-dark',th.dark);
+}
+
+const SENSORS={
+  color:      {label:'Color sensor', desc:'HUE · 0 – 360',      range:[0,360]},
+  controller: {label:'Controller',   desc:'LEVER · −100 – 100%', range:[-100,100]},
+  doublemotor:{label:'Double motor', desc:'TILT · −90 – 90°',    range:[-90,90]},
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let tab          = 'explore';
+let sensorId     = 'color';
+let sensorValue  = 0;
+let outputMode   = 'none';        // 'none' | 'single' | 'double'
+let outputSubMode= 'position';    // 'position' | 'speed'
+let singleConn   = false, doubleConn = false, motorConn = false;
+
+// Single motor
+let motorAngle   = 0;
+let motorSpeed   = 0;
+let sliderDragging = false;
+let lastPredictedAngle = null, lastPredictedSpeed = null;
+
+// Double motor
+let leftSpeed = 0, rightSpeed = 0;
+let leftAngle = 0, rightAngle = 0;   // position mode targets
+let leftRealAngle = 0, rightRealAngle = 0;  // read from server
+
+let trainingData = [];
+let serverConn   = false;
+let demoInterval = null, playTimer = null;
+let demoT = 0;
+let modalDevice  = null;
+let chartInst    = null;
+
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
+let socket;
+try {
+  socket = io('http://localhost:5000',{timeout:3000,reconnectionAttempts:3});
+
+  socket.on('connect',()=>{
+    serverConn=true;stopDemo();
+    document.getElementById('server-dot').className='status-dot connected';
+    document.getElementById('server-label').textContent='Server connected';
+    document.getElementById('demo-note').style.display='none';
+    socket.emit('set_mode',{mode:tab});
+    socket.emit('set_output_sub_mode',{sub_mode:outputSubMode});
+  });
+  socket.on('disconnect',()=>{
+    serverConn=false;startDemo();
+    document.getElementById('server-dot').className='status-dot demo';
+    document.getElementById('server-label').textContent='Demo mode';
+    document.getElementById('demo-note').style.display='';
+  });
+
+  socket.on('data',d=>{
+    if(d.sensor_value!==undefined){ updateSensor(d.sensor_value); if(tab==='play') runPlayLogic(); }
+    if(d.double_motor_pitch!==undefined&&sensorId==='doublemotor'){ updateSensor(d.double_motor_pitch); if(tab==='play') runPlayLogic(); }
+
+    // Single motor angle (position mode display)
+    if(d.motor_angle!==undefined){
+      motorAngle=d.motor_angle;
+      if(!sliderDragging){
+        document.getElementById('angle-slider').value=motorAngle;
+        const pv=document.getElementById('preview-motor-val'); if(pv)pv.textContent=motorAngle+'°';
+        updateSavePreview();
+      }
+      if(tab!=='play'&&outputMode==='single'&&outputSubMode==='position') drawGauge();
+    }
+
+    // Double motor positions (position mode)
+    if(d.double_motor_positions!==undefined){
+      leftRealAngle  = d.double_motor_positions.left;
+      rightRealAngle = d.double_motor_positions.right;
+      if(tab!=='play'&&outputMode==='double'&&outputSubMode==='position'){
+        document.getElementById('left-pos-num').innerHTML  = leftRealAngle+'<small style="font-size:20px">°</small>';
+        document.getElementById('right-pos-num').innerHTML = rightRealAngle+'<small style="font-size:20px">°</small>';
+        document.getElementById('left-pos-bar').style.width  = (leftRealAngle/360*100)+'%';
+        document.getElementById('right-pos-bar').style.width = (rightRealAngle/360*100)+'%';
+      }
+      if(!sliderDragging&&tab!=='play'&&outputMode==='double'&&outputSubMode==='position'){
+        document.getElementById('left-pos-slider').value  = leftRealAngle;
+        document.getElementById('right-pos-slider').value = rightRealAngle;
+        leftAngle=leftRealAngle; rightAngle=rightRealAngle;
+        updateSavePreview();
+      }
+    }
+  });
+
+  socket.on('device_status',d=>{
+    updateDeviceUI(d.device,d.connected,d.error);
+    if(d.device==='motor')      { singleConn=d.connected; motorConn=d.connected; detectOutputMode(); }
+    if(d.device==='doublemotor'){ doubleConn=d.connected; detectOutputMode(); }
+  });
+  socket.on('connect_error',()=>{ if(!serverConn) startDemo(); });
+} catch(e){ startDemo(); }
+
+// ── Output mode detection ─────────────────────────────────────────────────────
+function detectOutputMode(){
+  const newMode = singleConn?'single':(doubleConn?'double':'none');
+  if(newMode===outputMode){ updateRotateHint(); return; }
+  if(trainingData.length>0&&newMode!=='none'){
+    if(!confirm(`Switch to ${newMode} motor output?\nThis will clear your ${trainingData.length} data point(s).`)) return;
+    trainingData=[]; if(chartInst){chartInst.destroy();chartInst=null;}
+  }
+  outputMode=newMode;
+  applyOutputUI(); updateRotateHint(); renderTable(); renderPlot(); updateSavePreview();
+}
+
+function setOutputSubMode(mode){
+  if(mode===outputSubMode) return;
+  if(trainingData.length>0){
+    if(!confirm(`Switch to ${mode} mode?\nThis will clear your ${trainingData.length} data point(s).`)) return;
+    trainingData=[]; if(chartInst){chartInst.destroy();chartInst=null;}
+    lastPredictedAngle=null; lastPredictedSpeed=null;
+  }
+  outputSubMode=mode;
+  // When entering position mode, pre-set sliders to current real motor positions
+  // so the first slider move doesn't jump the motor from 0 to the real angle
+  if(mode==='position'&&outputMode==='double'){
+    leftAngle=leftRealAngle; rightAngle=rightRealAngle;
+    document.getElementById('left-pos-slider').value=leftAngle;
+    document.getElementById('right-pos-slider').value=rightAngle;
+  }
+  if(mode==='position'&&outputMode==='single'){
+    // motorAngle is already tracking real position
+    document.getElementById('angle-slider').value=motorAngle;
+  }
+  document.getElementById('smb-position').classList.toggle('active',mode==='position');
+  document.getElementById('smb-speed').classList.toggle('active',mode==='speed');
+  if(socket&&serverConn) socket.emit('set_output_sub_mode',{sub_mode:mode});
+  applyOutputUI(); renderTable(); renderPlot(); updateSavePreview();
+}
+
+function applyOutputUI(){
+  const none=outputMode==='none', single=outputMode==='single', dbl=outputMode==='double';
+  const pos=outputSubMode==='position', spd=outputSubMode==='speed';
+  show('sub-mode-wrap', !none);
+  show('no-output',     none);
+  show('single-pos',    single&&pos);
+  show('single-spd',    single&&spd);
+  show('double-spd',    dbl&&spd);
+  show('double-pos',    dbl&&pos);
+  show('angle-slider-wrap', single&&pos&&tab==='train');
+  document.querySelectorAll('.speed-slider').forEach(s=>s.disabled=tab==='play');
+  document.getElementById('gauge').style.cursor=(single&&pos&&tab==='train')?'crosshair':'default';
+  updateRotateHint(); drawGauge(); updateSavePreview();
+}
+
+function updateRotateHint(){
+  const hint=document.getElementById('rotate-hint');
+  if(hint) hint.style.display=(motorConn&&serverConn&&tab==='train'&&outputMode==='single'&&outputSubMode==='position')?'':'none';
+}
+
+// ── Demo ──────────────────────────────────────────────────────────────────────
+function startDemo(){
+  if(demoInterval) return;
+  demoInterval=setInterval(()=>{
+    demoT+=0.015;
+    const cfg=SENSORS[sensorId], mid=(cfg.range[0]+cfg.range[1])/2, amp=(cfg.range[1]-cfg.range[0])*.45;
+    updateSensor(Math.round(mid+amp*Math.sin(demoT)));
+    if(tab==='play') runPlayLogic();
+  },100);
+}
+function stopDemo(){clearInterval(demoInterval);demoInterval=null;}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function switchTab(t){
+  tab=t; applyTheme(t);
+  if(socket&&serverConn) socket.emit('set_mode',{mode:t});
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  const E=t==='explore',TR=t==='train',PL=t==='play';
+  show('explore-info',  E);
+  show('train-controls',TR&&outputMode!=='none');
+  show('play-info',     PL&&trainingData.length>=2);
+  show('play-warn',     PL&&trainingData.length<2);
+  show('plot-card',     !E);
+  show('table-card',    !E);
+  show('plot-legend',   PL);
+  show('clear-btn',     TR&&trainingData.length>0);
+  show('single-pos-predicted', PL&&outputMode==='single'&&outputSubMode==='position');
+  show('single-spd-predicted', PL&&outputMode==='single'&&outputSubMode==='speed');
+  show('double-spd-pred',      PL&&outputMode==='double'&&outputSubMode==='speed');
+  show('double-pos-pred',      PL&&outputMode==='double'&&outputSubMode==='position');
+  lastPredictedAngle=null; lastPredictedSpeed=null;
+  clearInterval(playTimer); playTimer=null;
+  if(PL) playTimer=setInterval(()=>{if(tab==='play') runPlayLogic();},300);
+  document.querySelectorAll('.speed-slider').forEach(s=>s.disabled=PL);
+  applyOutputUI(); updateRotateHint(); updateSavePreview(); renderTable(); renderPlot();
+}
+function show(id,v){const el=document.getElementById(id);if(el)el.style.display=v?'':'none';}
+
+// ── Sensor ────────────────────────────────────────────────────────────────────
+function setSensor(sid){
+  sensorId=sid;
+  document.querySelectorAll('.sensor-opt').forEach(el=>el.classList.toggle('sel',el.dataset.sid===sid));
+  const cfg=SENSORS[sid];
+  document.getElementById('sensor-card-label').textContent=cfg.label;
+  document.getElementById('sensor-desc').textContent=cfg.desc;
+  document.getElementById('smin-label').textContent=cfg.range[0];
+  document.getElementById('smax-label').textContent=cfg.range[1];
+  if(socket&&serverConn) socket.emit('set_sensor_type',{sensor:sid});
+  demoT=0; if(chartInst){chartInst.destroy();chartInst=null;}
+}
+function updateSensor(val){
+  sensorValue=val;
+  document.getElementById('sensor-num').textContent=val;
+  const cfg=SENSORS[sensorId],pct=Math.max(0,Math.min(100,(val-cfg.range[0])/(cfg.range[1]-cfg.range[0])*100));
+  document.getElementById('sensor-bar').style.width=pct+'%';
+  updateSavePreview();
+}
+
+// ── Save preview ──────────────────────────────────────────────────────────────
+function updateSavePreview(){
+  const el=document.getElementById('save-preview'); if(!el) return;
+  if(outputMode==='none'){el.innerHTML='📌 Connect a motor first';return;}
+  if(outputMode==='single'&&outputSubMode==='position')
+    el.innerHTML=`📌 Will save: sensor <strong>${sensorValue}</strong> → motor <strong id="preview-motor-val">${motorAngle}°</strong>`;
+  else if(outputMode==='single'&&outputSubMode==='speed')
+    el.innerHTML=`📌 Will save: sensor <strong>${sensorValue}</strong> → speed <strong>${motorSpeed}%</strong>`;
+  else if(outputMode==='double'&&outputSubMode==='speed')
+    el.innerHTML=`📌 Will save: sensor <strong>${sensorValue}</strong> → left <strong>${leftSpeed}%</strong>, right <strong>${rightSpeed}%</strong>`;
+  else if(outputMode==='double'&&outputSubMode==='position')
+    el.innerHTML=`📌 Will save: sensor <strong>${sensorValue}</strong> → left <strong>${leftAngle}°</strong>, right <strong>${rightAngle}°</strong>`;
+}
+
+// ── Motor controls ────────────────────────────────────────────────────────────
+function sliderChanged(a){
+  sliderDragging=true;
+  motorAngle=a;
+  const pv=document.getElementById('preview-motor-val');if(pv)pv.textContent=a+'°';
+  drawGauge(); updateSavePreview();
+  if(socket&&serverConn&&singleConn) socket.emit('move_motor',{angle:a});
+}
+function gaugeClick(e){
+  if(tab!=='train'||outputMode!=='single'||outputSubMode!=='position') return;
+  sliderDragging=true;
+  const rect=document.getElementById('gauge').getBoundingClientRect();
+  let deg=Math.atan2(e.clientY-rect.top-100,e.clientX-rect.left-100)*180/Math.PI+90;
+  if(deg<0)deg+=360; const a=Math.round(deg)%360;
+  motorAngle=a; document.getElementById('angle-slider').value=a;
+  const pv=document.getElementById('preview-motor-val');if(pv)pv.textContent=a+'°';
+  drawGauge(); updateSavePreview();
+  if(socket&&serverConn&&singleConn) socket.emit('move_motor',{angle:a});
+}
+function setSingleSpeed(s){
+  motorSpeed=s;
+  document.getElementById('single-spd-num').innerHTML=s+'<small style="font-size:20px">%</small>';
+  updateSpeedBar('single-spd-bar',s);
+  updateSavePreview();
+  if(socket&&serverConn&&singleConn) socket.emit('set_motor_speed',{speed:s});
+}
+function setLeftSpeed(s){
+  leftSpeed=s;
+  document.getElementById('left-speed-num').innerHTML=s+'<small style="font-size:20px">%</small>';
+  updateSpeedBar('left-bar',s);
+  updateSavePreview();
+  if(socket&&serverConn&&doubleConn) socket.emit('move_double_motor',{left:leftSpeed,right:rightSpeed});
+}
+function setRightSpeed(s){
+  rightSpeed=s;
+  document.getElementById('right-speed-num').innerHTML=s+'<small style="font-size:20px">%</small>';
+  updateSpeedBar('right-bar',s);
+  updateSavePreview();
+  if(socket&&serverConn&&doubleConn) socket.emit('move_double_motor',{left:leftSpeed,right:rightSpeed});
+}
+function setLeftTarget(a){
+  sliderDragging=true;
+  leftAngle=a; updateSavePreview();
+  if(socket&&serverConn&&doubleConn) socket.emit('move_double_motor_position',{left:leftAngle,right:rightAngle});
+}
+function setRightTarget(a){
+  sliderDragging=true;
+  rightAngle=a; updateSavePreview();
+  if(socket&&serverConn&&doubleConn) socket.emit('move_double_motor_position',{left:leftAngle,right:rightAngle});
+}
+function updateSpeedBar(id,spd){
+  const bar=document.getElementById(id); if(!bar) return;
+  const tc=TAB_THEMES[tab].color;
+  const pct=Math.abs(spd)/2;
+  if(spd>0){bar.style.left='50%';bar.style.width=pct+'%';bar.style.background=tc;}
+  else if(spd<0){bar.style.left=(50-pct)+'%';bar.style.width=pct+'%';bar.style.background='#64748B';}
+  else{bar.style.width='0%';}
+}
+
+// ── Gauge ─────────────────────────────────────────────────────────────────────
+function drawGauge(ov){
+  const svg=document.getElementById('gauge'),cx=100,cy=100,R=72,sw=14;
+  const a=ov!==undefined?ov:motorAngle, tc=TAB_THEMES[tab].color;
+  function pt(deg){const r=(deg-90)*Math.PI/180;return[cx+R*Math.cos(r),cy+R*Math.sin(r)];}
+  function arc(deg){const c=Math.min(deg,359.9),[sx,sy]=pt(0),[ex,ey]=pt(c);return`M${sx} ${sy}A${R} ${R} 0 ${c>180?1:0} 1 ${ex} ${ey}`;}
+  const[nx,ny]=pt(a);
+  let ticks='';
+  for(let i=0;i<12;i++){const[x1,y1]=pt(i*30),r=(i*30-90)*Math.PI/180,or=R+sw*.6,maj=i%3===0;
+    ticks+=`<line x1="${x1}" y1="${y1}" x2="${cx+or*Math.cos(r)}" y2="${cy+or*Math.sin(r)}" stroke="${maj?'#9CA3AF':'#D1D5DB'}" stroke-width="${maj?2:1.5}"/>`;}
+  svg.innerHTML=`<defs><filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <circle cx="${cx}" cy="${cy}" r="${R+sw/2+6}" fill="${TAB_THEMES[tab].light}"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#E5E7EB" stroke-width="${sw}"/>
+    ${a>0?`<path d="${arc(a)}" fill="none" stroke="${tc}" stroke-width="${sw}" stroke-linecap="round" filter="url(#glow)"/>`:''}
+    ${ticks}
+    <line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="#1F2937" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="7" fill="#1F2937"/>
+    <circle cx="${cx}" cy="${cy}" r="4" fill="${tc}"/>
+    <text x="${cx}" y="${cy+42}" text-anchor="middle" font-size="26" font-weight="800" fill="${tc}" font-family="'JetBrains Mono',monospace">${a}°</text>
+    <text x="${cx}" y="16" text-anchor="middle" font-size="11" fill="#9CA3AF" font-family="'Nunito',sans-serif" font-weight="700">0°</text>
+    <text x="${cx}" y="196" text-anchor="middle" font-size="11" fill="#9CA3AF" font-family="'Nunito',sans-serif" font-weight="700">180°</text>
+    ${tab==='train'&&outputMode==='single'&&outputSubMode==='position'&&!motorConn?`<text x="${cx}" y="${cy+72}" text-anchor="middle" font-size="11" fill="${tc}" font-family="'Nunito',sans-serif" font-weight="700">click to set angle</text>`:''}`;}
+
+// ── Training data ─────────────────────────────────────────────────────────────
+function addDataPoint(){
+  if(outputMode==='none') return;
+  let pt;
+  if(outputMode==='single'&&outputSubMode==='position')  pt={sensor:sensorValue,motor:motorAngle};
+  else if(outputMode==='single'&&outputSubMode==='speed') pt={sensor:sensorValue,speed:motorSpeed};
+  else if(outputMode==='double'&&outputSubMode==='speed') pt={sensor:sensorValue,left:leftSpeed,right:rightSpeed};
+  else                                                     pt={sensor:sensorValue,left:leftAngle,right:rightAngle};
+  trainingData.push(pt);
+  show('clear-btn',true); renderTable(); renderPlot();
+}
+function deletePoint(i){
+  trainingData.splice(i,1); show('clear-btn',trainingData.length>0);
+  if(chartInst){chartInst.destroy();chartInst=null;} renderTable(); renderPlot();
+}
+function clearData(){
+  if(!confirm('Clear all training data?')) return;
+  trainingData=[]; show('clear-btn',false);
+  if(chartInst){chartInst.destroy();chartInst=null;} renderTable(); renderPlot();
+}
+
+// ── Interpolation ─────────────────────────────────────────────────────────────
+function interpolate(sv,data,getValue){
+  if(data.length<2) return null;
+  const s=[...data].sort((a,b)=>a.sensor-b.sensor);
+  if(sv<=s[0].sensor) return getValue(s[0]);
+  if(sv>=s[s.length-1].sensor) return getValue(s[s.length-1]);
+  for(let i=0;i<s.length-1;i++){
+    const s0=s[i].sensor,v0=getValue(s[i]),s1=s[i+1].sensor,v1=getValue(s[i+1]);
+    if(s0<=sv&&sv<=s1) return Math.round(v0+(sv-s0)/(s1-s0)*(v1-v0));
+  }
+  return null;
+}
+
+// ── Play logic ────────────────────────────────────────────────────────────────
+function runPlayLogic(){
+  const info=document.getElementById('play-info'), warn=document.getElementById('play-warn');
+
+  if(outputMode==='single'&&outputSubMode==='position'){
+    const pred=interpolate(sensorValue,trainingData,d=>d.motor);
+    const tag=document.getElementById('single-pos-predicted');
+    if(pred!==null){
+      show('single-pos-predicted',true); tag.textContent=`🎯 Predicted: ${pred}°`;
+      show('play-info',true); info.textContent=`Sensor ${sensorValue} → motor ${pred}° (learned)`;
+      show('play-warn',false);
+      if(socket&&serverConn) socket.emit('move_motor',{angle:pred});
+      drawGauge(pred);
+    } else{ show('single-pos-predicted',false); show('play-info',false); show('play-warn',true); }
+
+  } else if(outputMode==='single'&&outputSubMode==='speed'){
+    const pred=interpolate(sensorValue,trainingData,d=>d.speed);
+    const tag=document.getElementById('single-spd-predicted');
+    if(pred!==null){
+      show('single-spd-predicted',true); tag.textContent=`🎯 Predicted: ${pred}%`;
+      show('play-info',true); info.textContent=`Sensor ${sensorValue} → speed ${pred}% (learned)`;
+      show('play-warn',false);
+      document.getElementById('single-spd-num').innerHTML=pred+'<small style="font-size:20px">%</small>';
+      updateSpeedBar('single-spd-bar',pred);
+      if(socket&&serverConn) socket.emit('set_motor_speed',{speed:pred});
+    } else{ show('single-spd-predicted',false); show('play-info',false); show('play-warn',true); }
+
+  } else if(outputMode==='double'&&outputSubMode==='speed'){
+    const pL=interpolate(sensorValue,trainingData,d=>d.left);
+    const pR=interpolate(sensorValue,trainingData,d=>d.right);
+    if(pL!==null&&pR!==null){
+      show('double-spd-pred',true);
+      document.getElementById('pred-left-spd').textContent=pL;
+      document.getElementById('pred-right-spd').textContent=pR;
+      show('play-info',true); info.textContent=`Sensor ${sensorValue} → L ${pL}%, R ${pR}% (learned)`;
+      show('play-warn',false);
+      if(socket&&serverConn&&doubleConn) socket.emit('move_double_motor',{left:pL,right:pR});
+    } else{ show('double-spd-pred',false); show('play-info',false); show('play-warn',true); }
+
+  } else if(outputMode==='double'&&outputSubMode==='position'){
+    const pL=interpolate(sensorValue,trainingData,d=>d.left);
+    const pR=interpolate(sensorValue,trainingData,d=>d.right);
+    if(pL!==null&&pR!==null){
+      show('double-pos-pred',true);
+      document.getElementById('pred-left-pos').textContent=pL;
+      document.getElementById('pred-right-pos').textContent=pR;
+      show('play-info',true); info.textContent=`Sensor ${sensorValue} → L ${pL}°, R ${pR}° (learned)`;
+      show('play-warn',false);
+      if(socket&&serverConn&&doubleConn) socket.emit('move_double_motor_position',{left:pL,right:pR});
+    } else{ show('double-pos-pred',false); show('play-info',false); show('play-warn',true); }
+  }
+
+  renderPlot();
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+function renderTable(){
+  document.getElementById('table-label').textContent=`Training values (${trainingData.length})`;
+  const empty=document.getElementById('table-empty'),wrap=document.getElementById('table-wrap');
+  if(trainingData.length===0){empty.style.display='';wrap.style.display='none';return;}
+  empty.style.display='none';wrap.style.display='';
+  const head=document.getElementById('table-head');
+  const delTh=tab==='train'?'<th></th>':'';
+  if(outputMode==='single'&&outputSubMode==='position')
+    head.innerHTML=`<th>#</th><th>Sensor</th><th>Angle</th>${delTh}`;
+  else if(outputMode==='single'&&outputSubMode==='speed')
+    head.innerHTML=`<th>#</th><th>Sensor</th><th>Speed %</th>${delTh}`;
+  else if(outputMode==='double'&&outputSubMode==='speed')
+    head.innerHTML=`<th>#</th><th>Sensor</th><th style="color:#2563EB">Left %</th><th style="color:#DB2777">Right %</th>${delTh}`;
+  else
+    head.innerHTML=`<th>#</th><th>Sensor</th><th style="color:#2563EB">Left °</th><th style="color:#DB2777">Right °</th>${delTh}`;
+  const del=i=>tab==='train'?`<td><button class="del-btn" onclick="deletePoint(${i})">×</button></td>`:'';
+  document.getElementById('table-body').innerHTML=trainingData.map((pt,i)=>{
+    const s=`<td class="mono accent">${pt.sensor}</td>`;
+    if(outputMode==='single'&&outputSubMode==='position')
+      return`<tr><td style="color:#9CA3AF;font-size:11px;font-weight:700">${i+1}</td>${s}<td class="mono">${pt.motor}°</td>${del(i)}</tr>`;
+    if(outputMode==='single'&&outputSubMode==='speed')
+      return`<tr><td style="color:#9CA3AF;font-size:11px;font-weight:700">${i+1}</td>${s}<td class="mono">${pt.speed}%</td>${del(i)}</tr>`;
+    const u=outputSubMode==='speed'?'%':'°';
+    return`<tr><td style="color:#9CA3AF;font-size:11px;font-weight:700">${i+1}</td>${s}<td class="accent-blue">${pt.left}${u}</td><td class="accent-pink">${pt.right}${u}</td>${del(i)}</tr>`;
+  }).join('');
+}
+
+// ── Plot ──────────────────────────────────────────────────────────────────────
+function renderPlot(){
+  const wrap=document.getElementById('scatter-wrap');
+  if(trainingData.length===0){
+    if(chartInst){chartInst.destroy();chartInst=null;}
+    wrap.innerHTML='<div class="plot-empty"><span>📊</span>No data points yet — add some in Train mode!</div>';
+    return;
+  }
+  const sVals=trainingData.map(d=>d.sensor);
+  const sMin=Math.min(...sVals),sMax=Math.max(...sVals);
+  const sPad=Math.max((sMax-sMin)*.12,5);
+  const xMin=Math.floor(sMin-sPad),xMax=Math.ceil(sMax+sPad);
+  const tc=TAB_THEMES[tab].color;
+
+  let datasets,yMin,yMax,yLabel;
+
+  if(outputMode==='single'&&outputSubMode==='position'){
+    const pred=tab==='play'?interpolate(sensorValue,trainingData,d=>d.motor):null;
+    yMin=0;yMax=360;yLabel='Motor angle (°)';
+    datasets=[{label:'Points',type:'scatter',data:trainingData.map(d=>({x:d.sensor,y:d.motor})),backgroundColor:tc+'CC',borderColor:tc,borderWidth:2,pointRadius:8,pointHoverRadius:10}];
+    if(tab==='play'){
+      datasets.push({label:'Sensor',data:[{x:sensorValue,y:0},{x:sensorValue,y:360}],type:'line',borderColor:'#64748B',borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false});
+      if(pred!==null) datasets.push({label:'Pred',data:[{x:xMin,y:pred},{x:xMax,y:pred}],type:'line',borderColor:'#A855F7',borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false});
+    }
+  } else if(outputMode==='single'&&outputSubMode==='speed'){
+    const pred=tab==='play'?interpolate(sensorValue,trainingData,d=>d.speed):null;
+    yMin=-100;yMax=100;yLabel='Speed (%)';
+    datasets=[{label:'Points',type:'scatter',data:trainingData.map(d=>({x:d.sensor,y:d.speed})),backgroundColor:tc+'CC',borderColor:tc,borderWidth:2,pointRadius:8,pointHoverRadius:10}];
+    if(tab==='play'){
+      datasets.push({label:'Sensor',data:[{x:sensorValue,y:-100},{x:sensorValue,y:100}],type:'line',borderColor:'#64748B',borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false});
+      if(pred!==null) datasets.push({label:'Pred',data:[{x:xMin,y:pred},{x:xMax,y:pred}],type:'line',borderColor:'#A855F7',borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false});
+    }
+  } else {
+    const u=outputSubMode==='speed'?'%':'°';
+    const pL=tab==='play'?interpolate(sensorValue,trainingData,d=>d.left):null;
+    const pR=tab==='play'?interpolate(sensorValue,trainingData,d=>d.right):null;
+    yMin=outputSubMode==='speed'?-100:0; yMax=outputSubMode==='speed'?100:360;
+    yLabel=outputSubMode==='speed'?'Speed (%)':'Angle (°)';
+    datasets=[
+      {label:'Left',type:'scatter',data:trainingData.map(d=>({x:d.sensor,y:d.left})),backgroundColor:'#2563EBCC',borderColor:'#2563EB',borderWidth:2,pointRadius:8,pointHoverRadius:10},
+      {label:'Right',type:'scatter',data:trainingData.map(d=>({x:d.sensor,y:d.right})),backgroundColor:'#DB2777CC',borderColor:'#DB2777',borderWidth:2,pointRadius:8,pointHoverRadius:10},
+    ];
+    if(tab==='play'){
+      datasets.push({label:'Sensor',data:[{x:sensorValue,y:yMin},{x:sensorValue,y:yMax}],type:'line',borderColor:'#64748B',borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false});
+      if(pL!==null) datasets.push({label:'Left pred',data:[{x:xMin,y:pL},{x:xMax,y:pL}],type:'line',borderColor:'#2563EB',borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false});
+      if(pR!==null) datasets.push({label:'Right pred',data:[{x:xMin,y:pR},{x:xMax,y:pR}],type:'line',borderColor:'#DB2777',borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false});
+    }
+  }
+
+  const leg=document.getElementById('plot-legend');
+  if(leg&&tab==='play'){
+    if(outputMode==='double') leg.innerHTML='<span style="color:#2563EB">● Left</span><span style="color:#DB2777">● Right</span><span>— sensor</span>';
+    else leg.innerHTML='<span>— sensor</span><span style="color:#A855F7">— predicted</span>';
+  }
+
+  if(chartInst){
+    chartInst.data.datasets=datasets;
+    chartInst.options.scales.x.min=xMin; chartInst.options.scales.x.max=xMax;
+    chartInst.options.scales.y.min=yMin; chartInst.options.scales.y.max=yMax;
+    chartInst.update('none'); return;
+  }
+  wrap.innerHTML='<canvas id="scatter-canvas"></canvas>';
+  chartInst=new Chart(document.getElementById('scatter-canvas'),{
+    type:'scatter',data:{datasets},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      scales:{
+        x:{type:'linear',min:xMin,max:xMax,title:{display:true,text:'Sensor value',color:'#6B7280',font:{size:11,family:'Nunito',weight:'700'}},grid:{color:'#F3F4F6'},ticks:{color:'#9CA3AF',font:{size:10}}},
+        y:{type:'linear',min:yMin,max:yMax,title:{display:true,text:yLabel,color:'#6B7280',font:{size:11,family:'Nunito',weight:'700'}},grid:{color:'#F3F4F6'},ticks:{color:'#9CA3AF',font:{size:10}}}
+      },
+      plugins:{
+        legend:{display:outputMode==='double',labels:{font:{family:'Nunito',size:11},filter:i=>i.datasetIndex<2}},
+        tooltip:{filter:i=>i.datasetIndex<=(outputMode==='double'?1:0),
+          callbacks:{label:ctx=>{
+            if(outputMode==='double') return ctx.dataset.label+`: ${ctx.parsed.x} → ${ctx.parsed.y}`;
+            return`Sensor: ${ctx.parsed.x}  →  ${ctx.parsed.y}`;
+          }},titleFont:{family:'Nunito'},bodyFont:{family:'Nunito',weight:'700'}}
+      }
+    }
+  });
+}
+
+// ── Devices ───────────────────────────────────────────────────────────────────
+function updateDeviceUI(device,connected,error){
+  const dot=document.getElementById('dot-'+device),btn=document.getElementById('btn-'+device);
+  if(!dot||!btn) return;
+  dot.classList.toggle('on',connected);
+  if(connected){
+    btn.textContent='Disconnect';btn.classList.add('disconnect');btn.onclick=()=>disconnectDevice(device);
+    // Auto-close modal on successful connection
+    if(modalDevice===device) closeModal();
+  } else {
+    btn.textContent='Connect';btn.classList.remove('disconnect');btn.onclick=()=>openModal(device);
+  }
+  if(error){
+    // Show the real error inside the modal (keep modal open so user can read it)
+    const err=document.getElementById('modal-error');
+    if(err){ err.textContent=error; err.classList.add('show'); }
+    const c=document.getElementById('connecting-msg');
+    if(c) c.classList.remove('show');
+    // Also log to console for debugging
+    console.warn(`[${device}] connect error:`, error);
+  }
+}
+function disconnectDevice(d){if(socket&&serverConn)socket.emit('disconnect_device',{device:d});else updateDeviceUI(d,false);}
+function openModal(device){
+  modalDevice=device;
+  const names={motor:'Single motor',colorsensor:'Color sensor',controller:'Controller',doublemotor:'Double motor'};
+  document.getElementById('modal-title').textContent='Connect '+(names[device]||device);
+  document.getElementById('modal-error').classList.remove('show');
+  document.getElementById('connecting-msg').classList.remove('show');
+  document.getElementById('modal-serial').value='';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';modalDevice=null;}
+function doConnect(){
+  if(!modalDevice) return;
+  const color=document.getElementById('modal-color').value;
+  const serial=document.getElementById('modal-serial').value.trim();
+  if(serial.length!==4){const e=document.getElementById('modal-error');e.textContent='Serial must be 4 digits.';e.classList.add('show');return;}
+  document.getElementById('modal-error').classList.remove('show');
+  if(!serverConn){const e=document.getElementById('modal-error');e.textContent='Start smart_motor_server.py first!';e.classList.add('show');return;}
+  document.getElementById('connecting-msg').classList.add('show');
+  socket.emit('connect_device',{device:modalDevice,card_color:color,card_serial:serial});
+  // Modal stays open until device_status arrives (success closes it, failure shows error)
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+applyTheme('explore'); applyOutputUI(); updateSavePreview(); startDemo(); drawGauge();
+
+const _sl=document.getElementById('angle-slider');
+if(_sl){
+  _sl.addEventListener('mousedown',()=>sliderDragging=true);
+  _sl.addEventListener('touchstart',()=>sliderDragging=true,{passive:true});
+}
+document.addEventListener('mouseup',()=>{sliderDragging=false;});
+document.addEventListener('touchend',()=>{sliderDragging=false;});
+</script>
+</body>
+</html>
