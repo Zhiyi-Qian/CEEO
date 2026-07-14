@@ -61,8 +61,8 @@ source .venv/bin/activate
 
 3. Install the required packages
 
-python3 -m pip install --upgrade pip
-python3 -m pip install flask flask-socketio legoeducation
+python3 -m pip install Flask Flask-SocketIO
+python3 -m pip install legoeducation
 
 If installation finishes without an error, continue to the next step.
 
