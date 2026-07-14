@@ -1,4 +1,6 @@
 # Smart Motor Webpage!
+**Try use the double motor and input/output!
+**You can manually rotate the motor or use the slider bar!
 
 Smart Motor Lab — Setup and Usage
 
