@@ -388,7 +388,7 @@ def sensor_poll():
 
 @app.route("/")
 def index():
-    return send_from_directory(".", "smart_motor_lab.html")
+    return send_from_directory(".", "index.html")
 
 
 # ── Socket.IO events ──────────────────────────────────────────────────────────
